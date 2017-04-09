@@ -1,0 +1,6 @@
+[submodule "dotvvm"]
+	path = dotvvm
+	url = https://github.com/riganti/dotvvm.git
+[submodule "perfview"]
+	path = perfview
+	url = https://github.com/Microsoft/perfview.git
