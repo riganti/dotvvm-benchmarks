@@ -27,7 +27,7 @@ namespace DotVVM.Benchmarks
 
             var sum1 = BenchmarkRunner.Run<DotvvmSynthTestBenchmark>(conf);
 
-            var sum2 = DotvvmSamplesBenchmarker<Samples.BasicSamples.DotvvmStartup>.BenchmarkSamples(conf);
+            //var sum2 = DotvvmSamplesBenchmarker<Samples.BasicSamples.DotvvmStartup>.BenchmarkSamples(conf);
 
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(config: conf);
@@ -48,7 +48,7 @@ namespace DotVVM.Benchmarks
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
-            conf.Add(new PerfViewBenchmarkDiagnoser("C:/"));
+            conf.Add(new PerfViewBenchmarkDiagnoser("G:/"));
             //conf.Add(new PmcDiagnoser());
             //conf.Add(new BenchmarkDotNet.Diagnostics.Windows.InliningDiagnoser());
 
