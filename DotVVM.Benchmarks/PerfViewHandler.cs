@@ -88,13 +88,14 @@ namespace DotVVM.Benchmarks
             a.Zip = true;
             a.Merge = true;
             a.InMemoryCircularBuffer = false;
-            a.DotNetAllocSampled = true;
-            a.CpuSampleMSec = 0.125f;
-            //a.StackCompression = true;
+            //a.DotNetAllocSampled = true;
+            a.CpuSampleMSec = 2f; // 0.125f;
+            a.StackCompression = true;
 
             a.DataFile = outFile;
             a.Process = processName ?? a.Process;
             a.NoNGenRundown = true;
+            a.NoV2Rundown = true;
             a.TrustPdbs = true;
             a.UnsafePDBMatch = true;
             return a;

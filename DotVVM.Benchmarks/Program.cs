@@ -17,6 +17,12 @@ using BenchmarkDotNet.Reports;
 using System.IO;
 using BenchmarkDotNet.Diagnostics.Windows;
 
+#if C_77b3b6f || DEBUG
+#else
+#error You should not build the solution by yourself (except for debugging purposes), use BenchmarkRunner
+#endif
+
+
 namespace DotVVM.Benchmarks
 {
     class Program
@@ -41,9 +47,9 @@ namespace DotVVM.Benchmarks
             conf.Add(BenchmarkDotNet.Exporters.HtmlExporter.Default);
             conf.Add(BenchmarkDotNet.Exporters.DefaultExporters.JsonFull);
             conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true)));
-            conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(false)));
-            conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
-            conf.Add(WithRunCount(Job.Clr.WithGcServer(false)));
+            //conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(false)));
+            //conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
+            //conf.Add(WithRunCount(Job.Clr.WithGcServer(false)));
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Min);
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
@@ -86,7 +92,7 @@ namespace DotVVM.Benchmarks
             tt.Wait();
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void Test1000Bindins()
         {
             var literal = "{{value: Property}} ";

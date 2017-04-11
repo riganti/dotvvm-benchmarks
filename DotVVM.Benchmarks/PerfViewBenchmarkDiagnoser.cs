@@ -51,8 +51,8 @@ namespace DotVVM.Benchmarks
             a.Zip = true;
             a.Merge = true;
             a.InMemoryCircularBuffer = false;
-            a.DotNetAllocSampled = true;
-            a.CpuSampleMSec = 0.125f;
+            //a.DotNetAllocSampled = true;
+            a.CpuSampleMSec = 2;//0.125f;
             a.DataFile = outFile;
             a.Process = processName ?? a.Process;
             a.NoNGenRundown = true;
@@ -65,7 +65,7 @@ namespace DotVVM.Benchmarks
         {
             if (commandProcessor != null) throw new Exception("Collection is already running.");
 
-            string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo) + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".etl");
+            string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo) + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".etl.zip");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             logFile.Add(parameters.Benchmark, path);
 
