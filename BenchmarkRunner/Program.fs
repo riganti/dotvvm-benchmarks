@@ -82,10 +82,11 @@ let main argv =
     let gitVersion = System.Console.ReadLine()
 
     if gitVersion = "-" then 
-        printfn "Does not touching git, building against current working tree (%s, %s, %dM)" 
-            (getGitResult dotvvmDirectory "rev-parse HEAD" |> Seq.exactlyOne)
-            (getGitResult dotvvmDirectory "rev-parse --abbrev-ref HEAD" |> Seq.exactlyOne)
-            (getGitResult dotvvmDirectory "status --short" |> Seq.length)
+        printfn "Does not touching git, building against current working tree" 
+        //printfn "Does not touching git, building against current working tree (%s, %s, %dM)" 
+        //    (getGitResult dotvvmDirectory "rev-parse HEAD" |> Seq.exactlyOne)
+        //    (getGitResult dotvvmDirectory "rev-parse --abbrev-ref HEAD" |> Seq.exactlyOne)
+        //    (getGitResult dotvvmDirectory "status --short" |> Seq.length)
     else
         printfn "Checking out %s" gitVersion
         gitCommand dotvvmDirectory "fetch"
@@ -118,7 +119,7 @@ let main argv =
         printfn "Processing results of %s" benchmark
         let csv = FSharp.Data.CsvFile.Load(IO.Path.Combine(resultsDirectory, benchmark + "-report.csv"))
         let etwFileIndex = csv.Headers.Value |> Array.findIndex (fun x -> x = "ETW log file")
-        let attachedFiles = csv.Rows |> Seq.map (fun m -> (m, m.Columns.[etwFileIndex])) |> Seq.filter (fun f -> (snd f) <> null) |> Seq.toArray
+        let attachedFiles = csv.Rows |> Seq.map (fun m -> (m, m.Columns.[etwFileIndex])) |> Seq.filter (fun f -> (snd f) <> null && IO.File.Exists(snd f)) |> Seq.toArray
         printfn "Uploading %d files to IPFS" attachedFiles.Length
         let attachementDirectory = attachedFiles |> Seq.map (fun (b, f) -> (f, IO.Path.GetFileName(f))) |> createIpfsDirectory |> pushDirectory
         printf "Added all attachements to %s directory" attachementDirectory.Hash

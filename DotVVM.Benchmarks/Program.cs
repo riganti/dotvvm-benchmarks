@@ -37,6 +37,9 @@ namespace DotVVM.Benchmarks
 
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(config: conf);
+#if DEBUG
+            Console.ReadLine();
+#endif
         }
 
         static IConfig CreateTestConfiguration()
@@ -48,13 +51,23 @@ namespace DotVVM.Benchmarks
             conf.Add(BenchmarkDotNet.Exporters.DefaultExporters.JsonFull);
             conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true)));
             //conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(false)));
-            //conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
+            conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
             //conf.Add(WithRunCount(Job.Clr.WithGcServer(false)));
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Min);
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
-            conf.Add(new PerfViewBenchmarkDiagnoser("G:/"));
+            conf.Add(new PerfViewBenchmarkDiagnoser("C:/", 
+                methodColumns: new[] {
+                        ("DotVVM.Framework!DotVVM.Framework.Hosting.DotvvmPresenter.ProcessRequest(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "ProcessRequest"),
+                        ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultOutputRenderer.WriteHtmlResponse(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class DotVVM.Framework.Controls.Infrastructure.DotvvmView)", "WriteHtmlResponse"),
+                        ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultDotvvmViewBuilder.BuildView(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "BuildView"),
+                        ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmBindableObject.GetValue(class DotVVM.Framework.Binding.DotvvmProperty,bool)", "BindableObject.GetValue"),
+                        ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokePageLifecycleEventRecursive(class DotVVM.Framework.Controls.DotvvmControls,value class DotVVM.Framework.Controls.LifeCycleEventType)", "Lifecycle events"),
+                        ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.PopulateViewModel(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class System.String)", "Deserialize"),
+                        ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.ResolveCommand(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class DotVVM.Framework.Controls.Infrastructure.DotvvmView)", "ResolveCommand"),
+                        ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.BuildViewModel(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "Serialize"),
+                    }));
             //conf.Add(new PmcDiagnoser());
             //conf.Add(new BenchmarkDotNet.Diagnostics.Windows.InliningDiagnoser());
 
@@ -92,7 +105,7 @@ namespace DotVVM.Benchmarks
             tt.Wait();
         }
 
-        //[Benchmark]
+        [Benchmark]
         public void Test1000Bindins()
         {
             var literal = "{{value: Property}} ";

@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿extern alias PerfView;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using PerfView;
+using Microsoft.Diagnostics.Tracing;
+using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
+using Microsoft.Diagnostics.Tracing.Session;
+using Microsoft.Diagnostics.Tracing.Stacks;
 
 namespace DotVVM.Benchmarks
 {
@@ -33,96 +36,148 @@ namespace DotVVM.Benchmarks
         }
 
 
-        static void StopCollection(int collectionHandle)
+        static void StopCollection(int collectionHandle, bool rundown)
+        {
+            var d = GetPerfViewDomain();
+            Console.WriteLine($"Stopping ETW collection, rundown: {rundown}");
+            lock (locker)
+            {
+                d.SetData("collectionHandle", collectionHandle);
+                d.SetData("doRundown", rundown);
+                d.DoCallBack(PerfViewDomainMethods.StopCollection);
+            }
+        }
+        static void MergeAndZip(string fileName)
         {
             var d = GetPerfViewDomain();
             lock (locker)
             {
-                d.SetData("collectionHandle", collectionHandle);
-                d.DoCallBack(PerfViewDomainMethods.StopCollection);
+                d.SetData("fileName", fileName);
+                d.DoCallBack(PerfViewDomainMethods.MergeFile);
             }
         }
-        public static CollectionHandler StartCollection(string outFile, string processName)
+
+        public static CollectionHandler StartCollection(string outFile, Process process)
         {
+            if (outFile.EndsWith(".zip")) outFile = outFile.Remove(outFile.Length - 4);
             var d = GetPerfViewDomain();
             lock (locker)
             {
                 d.SetData("outFile", outFile);
-                d.SetData("processName", processName);
+                d.SetData("processName", process?.ProcessName);
 
                 d.DoCallBack(PerfViewDomainMethods.RunCollection);
 
                 var handle = (int)d.GetData("collectionHandle");
-                return new CollectionHandler(handle);
+                return new CollectionHandler(handle, process, outFile);
             }
         }
 
         public class CollectionHandler
         {
             private readonly int collectionHandle;
+            private readonly Process process;
+            private readonly string outFile;
 
-            public CollectionHandler(int collectionHandle)
+            public CollectionHandler(int collectionHandle, Process process, string outFile)
             {
                 this.collectionHandle = collectionHandle;
+                this.process = process;
+                this.outFile = outFile;
             }
-            public void Stop()
+            public Func<Dictionary<string, ETWHelper.CallTreeItem>> StopAndLazyMerge()
             {
-                StopCollection(collectionHandle);
+                bool rundown = !this.process.WaitForExit(500);
+                StopCollection(collectionHandle, rundown: rundown);
+                var pid = process.Id;
+                return () => {
+                    var tmpFile = outFile + ".filtered.etl";
+                    if (File.Exists(tmpFile)) File.Delete(tmpFile);
+
+                    // WORKAROUND: ETWRelogger throws when more files are present
+                    foreach (var f in GetAllResultFiles(outFile))
+                    {
+                        if (!rundown && f.EndsWith(".clrRundown.etl")) { File.Delete(f); continue; }
+                        Console.WriteLine($"Filtering {f}");
+                        var (a, b, _) = ETWHelper.FilterTraceByPID(f, tmpFile, pid);
+                        Console.WriteLine($"Filtered, {b}/{a} events left.");
+#if DEBUG
+                        File.Move(f, f + ".all");
+#else
+                    File.Delete(f);
+#endif
+                        File.Delete(f);
+                        File.Move(tmpFile, f);
+                    }
+                    var allFiles = GetAllResultFiles(outFile);
+                    if (allFiles.Length > 1)
+                    {
+                        TraceEventSession.Merge(allFiles, tmpFile, TraceEventMergeOptions.Compress);
+                        File.Delete(outFile);
+                        File.Move(tmpFile, outFile);
+                    }
+                    else if (allFiles[0] != outFile)
+                        File.Move(allFiles[0], outFile);
+
+                    var (tlog, etlx) = ETWHelper.GetTraceLog(outFile);
+                    var proc = tlog.Processes.FirstOrDefault(p => p.ProcessID == pid);
+                    var stacks = new TraceEventStackSource(proc.EventsInProcess.Filter(t => t is SampledProfileTraceData));
+                    var callTree = ETWHelper.GetCallTree(stacks, out var timeModifier);
+                    //if (GetAllResultFiles(outFile) is var allFiles && allFiles.Length > 1)
+                    //{
+                    //    string tempName = Path.ChangeExtension(outFile, ".etl.new");
+                    //    TraceEventSession.Merge(allFiles, tempName);
+                    //    // Delete the originals.  
+                    //    foreach (var mergeInput in allFiles)
+                    //        File.Delete(mergeInput);
+                    //    // Place the output in its final resting place.  
+                    //    File.Move(tempName, outFile);
+                    //}
+                    tlog.Dispose();
+
+                    //ZipWithPdbs(outFile);
+                    Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(outFile), "symbols"));
+                    MergeAndZip(outFile);
+                    return callTree;
+                };
+            }
+
+            //public void ZipWithPdbs(string fileName, bool doRundown)
+            //{
+            //    var etlWriter = new ZippedETLWriter(fileName);
+            //    if (!doRundown)
+            //        etlWriter.NGenSymbolFiles = false;
+            //    etlWriter.SymbolReader = App.GetSymbolReader(parsedArgs.DataFile);
+            //    if (!parsedArgs.ShouldZip)
+            //        etlWriter.Zip = false;
+            //    if (parsedArgs.StackCompression)
+            //        etlWriter.CompressETL = true;
+            //    etlWriter.DeleteInputFile = false;
+            //    if (File.Exists(App.LogFileName))
+            //        etlWriter.AddFile(App.LogFileName, "PerfViewLogFile.txt");
+            //}
+
+            static string[] GetAllResultFiles(string etlFileName)
+            {
+                var dir = Path.GetDirectoryName(etlFileName);
+                if (dir.Length == 0)
+                    dir = ".";
+                var baseName = Path.GetFileNameWithoutExtension(etlFileName);
+                List<string> mergeInputs = new List<string>();
+                mergeInputs.Add(etlFileName);
+                mergeInputs.AddRange(Directory.GetFiles(dir, baseName + ".kernel*.etl"));
+                mergeInputs.AddRange(Directory.GetFiles(dir, baseName + ".clr*.etl"));
+                mergeInputs.AddRange(Directory.GetFiles(dir, baseName + ".user*.etl"));
+                return mergeInputs.ToArray();
             }
         }
+
+
 
         public static void PerfViewDomainLaunch()
         {
-            PerfView.App.Unpack();
-            if (!PerfView.App.IsElevated) throw new Exception("Application must be elevated.");
-        }
-    }
-
-    static class PerfViewDomainMethods
-    {   
-        static CommandLineArgs CreateArgs(string outFile, string processName = null)
-        {
-            var a = App.CommandLineArgs = new CommandLineArgs();
-            a.ParseArgs(new[] { "/NoGui" });
-            a.RestartingToElevelate = ""; // this should prevent PerfView from trying to elevate itself
-            a.Zip = true;
-            a.Merge = true;
-            a.InMemoryCircularBuffer = false;
-            //a.DotNetAllocSampled = true;
-            a.CpuSampleMSec = 2f; // 0.125f;
-            a.StackCompression = true;
-
-            a.DataFile = outFile;
-            a.Process = processName ?? a.Process;
-            a.NoNGenRundown = true;
-            a.NoV2Rundown = true;
-            a.TrustPdbs = true;
-            a.UnsafePDBMatch = true;
-            return a;
-        }
-
-        private static ConcurrentDictionary<int, (CommandProcessor, CommandLineArgs)> collectionHandles = new ConcurrentDictionary<int, (CommandProcessor, CommandLineArgs)>();
-        private static int collectionHandleIdCtr;
-        public static void RunCollection()
-        {
-            var path = (string)AppDomain.CurrentDomain.GetData("outFile");
-            var processName = (string)AppDomain.CurrentDomain.GetData("processName");
-
-            var commandProcessor = App.CommandProcessor = new CommandProcessor() { LogFile = Console.Out };
-            var commandArgs = CreateArgs(path, processName);
-            commandProcessor.Start(commandArgs);
-
-            var handle = Interlocked.Increment(ref collectionHandleIdCtr);
-            collectionHandles[handle] = (commandProcessor, commandArgs);
-            AppDomain.CurrentDomain.SetData("collectionHandle", handle);
-        }
-
-        public static void StopCollection()
-        {
-            var handle = (int)AppDomain.CurrentDomain.GetData("collectionHandle");
-            var (proc, args) = collectionHandles[handle];
-            collectionHandles.TryRemove(handle, out var _);
-            proc.Stop(args);
+            PerfView::PerfView.App.Unpack();
+            if (!PerfView::PerfView.App.IsElevated) throw new Exception("Application must be elevated.");
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,22 +11,29 @@ using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Validators;
-using PerfView;
 
 namespace DotVVM.Benchmarks
 {
     public class PerfViewBenchmarkDiagnoser : IDiagnoser
     {
         private readonly string tempPath;
+        private ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
 
-        public PerfViewBenchmarkDiagnoser(string tempPath = null)
+        public PerfViewBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1)
         {
             this.tempPath = tempPath ?? Path.GetTempPath();
+            this.methodColumns = methodColumns ?? new(string, string displayName)[0];
+            this.maxParallelism = maxParallelism < 0 ? Environment.ProcessorCount : maxParallelism;
         }
 
         private Dictionary<Benchmark, string> logFile = new Dictionary<Benchmark, string>();
+        private ConcurrentDictionary<Benchmark, float[]> methodPercentiles = new ConcurrentDictionary<Benchmark, float[]>();
 
         private PerfViewHandler.CollectionHandler commandProcessor = null;
+        private (string key, string displayName)[] methodColumns;
+        private int maxParallelism;
+        private Benchmark currentBenchmark;
+
         //private CommandLineArgs commandArgs = null;
 
         public void AfterSetup(DiagnoserActionParameters parameters)
@@ -37,39 +45,49 @@ namespace DotVVM.Benchmarks
         {
         }
 
+        private void ProcessTrace(Dictionary<string, ETWHelper.CallTreeItem> callTree, Benchmark benchmark)
+        {
+            var times = ETWHelper.ComputeTimeFractions(callTree, methodColumns.Select(t => t.key).ToArray()).ToArray();
+            methodPercentiles.TryAdd(benchmark, times);
+        }
+
         public void BeforeCleanup()
         {
-            commandProcessor.Stop();
+            var ll = commandProcessor.StopAndLazyMerge();
+            var benchmark = currentBenchmark;
+            actionQueue.Enqueue(() => {
+                var stacks = ll();
+                ProcessTrace(stacks, benchmark);
+            });
             commandProcessor = null;
         }
 
-        protected CommandLineArgs CreateArgs(string outFile, string processName = null)
+        void FlushQueue()
         {
-            var a = new CommandLineArgs();
-            a.ParseArgs(new[] { "/NoGui" });
-            a.RestartingToElevelate = ""; // this should prevent PerfView from trying to elevate itself
-            a.Zip = true;
-            a.Merge = true;
-            a.InMemoryCircularBuffer = false;
-            //a.DotNetAllocSampled = true;
-            a.CpuSampleMSec = 2;//0.125f;
-            a.DataFile = outFile;
-            a.Process = processName ?? a.Process;
-            a.NoNGenRundown = true;
-            a.TrustPdbs = true;
-            a.UnsafePDBMatch = true;
-            return a;
+            var list = new List<Action>();
+            while (actionQueue.TryDequeue(out var a)) list.Add(a);
+            Parallel.ForEach(list, a => a());
         }
 
         public void BeforeMainRun(DiagnoserActionParameters parameters)
         {
             if (commandProcessor != null) throw new Exception("Collection is already running.");
 
+            var folderInfo = parameters.Benchmark.Parameters?.FolderInfo;
+            if (string.IsNullOrEmpty(folderInfo)) folderInfo = parameters.Benchmark.FolderInfo;
             string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo) + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".etl.zip");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             logFile.Add(parameters.Benchmark, path);
-
-            commandProcessor = PerfViewHandler.StartCollection(path, parameters.Process.ProcessName);
+            try
+            {
+                commandProcessor = PerfViewHandler.StartCollection(path, parameters.Process);
+                currentBenchmark = parameters.Benchmark;
+            }
+            catch(Exception ex)
+            {
+                logFile.Remove(parameters.Benchmark);
+                new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineError("Could not start ETW trace: " + ex);
+            }
         }
 
         public void DisplayResults(ILogger logger)
@@ -78,8 +96,10 @@ namespace DotVVM.Benchmarks
 
         public IColumnProvider GetColumnProvider()
         {
+            FlushQueue();
             return new SimpleColumnProvider(
-                new FileNameColumn(logFile)
+                methodColumns.Select((m, i) => (IColumn)new MethodPercentileColumn(m.displayName, methodPercentiles, i))
+                .Concat(new[] { new FileNameColumn(logFile) }).ToArray()
             );
         }
 
@@ -91,5 +111,38 @@ namespace DotVVM.Benchmarks
         {
             yield break;
         }
+    }
+
+    public class MethodPercentileColumn : IColumn
+    {
+        private readonly string displayName;
+        private readonly IDictionary<Benchmark, float[]> dict;
+        private readonly int mIndex;
+
+        public MethodPercentileColumn(string displayName, IDictionary<Benchmark, float[]> dict, int mIndex)
+        {
+            this.displayName = displayName;
+            this.dict = dict;
+            this.mIndex = mIndex;
+        }
+        
+        public string Id => nameof(MethodPercentileColumn) + "_" + displayName;
+
+        public string ColumnName => $"{displayName}";
+
+        public bool AlwaysShow => false;
+
+        public ColumnCategory Category => ColumnCategory.Custom;
+
+        public int PriorityInCategory => mIndex + 1200;
+
+        public string GetValue(Summary summary, Benchmark benchmark) =>
+            dict.TryGetValue(benchmark, out var times) ?
+            $"{times[mIndex] * 100f}%" :
+            "-";
+
+        public bool IsAvailable(Summary summary) => true;
+
+        public bool IsDefault(Summary summary, Benchmark benchmark) => false;
     }
 }
