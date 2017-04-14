@@ -45,18 +45,19 @@ namespace DotVVM.Benchmarks
         }
 
 
-        public static DotvvmTestHost Create<TDotvvmStartup>(string applicationPath = "`undefinedLocation")
-            where TDotvvmStartup: IDotvvmStartup, new()
+        public static DotvvmTestHost Create<TAppLauncher>(string currentPath = "`undefinedLocation")
+            where TAppLauncher : IApplicationLauncher, new()
         {
             DotvvmConfiguration configuration = null;
+            var launcher = new TAppLauncher();
             var builder = new WebHostBuilder()
                 .ConfigureServices(s => {
                     s.AddSingleton<IMarkupFileLoader>(_ => new VirtualMarkupFileLoader(new DefaultMarkupFileLoader()));
                     s.AddSingleton<ICsrfProtector, FakeCsrfProtector>();
-                    s.AddDotVVM();
+                    launcher.ConfigServices(s);
                 })
                 .Configure(a => {
-                    configuration = a.UseDotVVM<TDotvvmStartup>(applicationPath, useErrorPages: false);
+                    configuration = launcher.ConfigApp(a, currentPath); //.UseDotVVM<TDotvvmStartup>(applicationPath, useErrorPages: false);
                 });
             var testServer = new TestServer(builder);
             var testClient = testServer.CreateClient();
@@ -129,11 +130,23 @@ namespace DotVVM.Benchmarks
             }
         }
 
+        public class DefaultLauncher : IApplicationLauncher
+        {
+            public DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath)
+            {
+                return app.UseDotVVM<DotvvmStartup>("`skks");
+            }
+
+            public void ConfigServices(IServiceCollection services)
+            {
+                services.AddDotVVM();
+            }
+        }
+
         public class DotvvmStartup : IDotvvmStartup
         {
             public void Configure(DotvvmConfiguration config, string applicationPath)
             {
-                
             }
         }
     }
@@ -148,5 +161,11 @@ namespace DotVVM.Benchmarks
             this.HttpResponse = httpResponse;
             this.Contents = contents;
         }
+    }
+
+    public interface IApplicationLauncher
+    {
+        void ConfigServices(IServiceCollection services);
+        DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath);
     }
 }

@@ -1,0 +1,19 @@
+@viewModel DotVVM.Benchmarks.WebApp.ViewModels.DefaultViewModel
+
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+
+	<dot:Repeater DataSource="{value: Items}">
+        <div>
+            <dot:TextBox Text="{value: Title}" />
+            <dot:Button Click="{command: _parent.Click(Title)}" />
+    </dot:Repeater>
+
+</body>
+</html>

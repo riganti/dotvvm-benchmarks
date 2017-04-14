@@ -265,6 +265,8 @@
     <Compile Include="PerfViewHandler.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WebApp\DotvvmStartup.cs" />
+    <Compile Include="WebApp\ViewModels\DefaultViewModel.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -272,6 +274,7 @@
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="WebApp\Views\default.dothtml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\dotvvm\src\DotVVM.Core\DotVVM.Core.csproj">

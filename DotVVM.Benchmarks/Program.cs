@@ -16,6 +16,8 @@ using DotVVM.Framework.Configuration;
 using BenchmarkDotNet.Reports;
 using System.IO;
 using BenchmarkDotNet.Diagnostics.Windows;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 
 #if C_77b3b6f || DEBUG
 #else
@@ -25,6 +27,32 @@ using BenchmarkDotNet.Diagnostics.Windows;
 
 namespace DotVVM.Benchmarks
 {
+    public class DotvvmSamplesLauncher : IApplicationLauncher
+    {
+        public DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath)
+        {
+            return app.UseDotVVM<DotVVM.Samples.BasicSamples.DotvvmStartup>(Path.Combine(currentPath, "dotvvm/src/DotVVM.Samples.Common"));
+        }
+
+        public void ConfigServices(IServiceCollection services)
+        {
+            services.AddDotVVM();
+        }
+    }
+
+    public class DotvvmPerfTestsLauncher : IApplicationLauncher
+    {
+        public DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath)
+        {
+            return app.UseDotVVM<WebApp.DotvvmStartup>(Path.Combine(currentPath, "DotVVM.Benchmarks/WebApp"));
+        }
+
+        public void ConfigServices(IServiceCollection services)
+        {
+            services.AddDotVVM();
+        }
+    }
+
     class Program
     {
         static void Main(string[] args)
@@ -33,7 +61,9 @@ namespace DotVVM.Benchmarks
 
             //var sum1 = BenchmarkRunner.Run<DotvvmSynthTestBenchmark>(conf);
 
-            var sum2 = DotvvmSamplesBenchmarker<Samples.BasicSamples.DotvvmStartup>.BenchmarkSamples(conf, postRequests: true, getRequests: false);
+            //var sum2 = DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true);
+
+            var sum3 = DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true);
 
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(config: conf);
@@ -96,7 +126,7 @@ namespace DotVVM.Benchmarks
         private DotvvmTestHost host;
         public DotvvmSynthTestBenchmark()
         {
-            host = DotvvmTestHost.Create<DotvvmTestHost.DotvvmStartup>();
+            host = DotvvmTestHost.Create<DotvvmTestHost.DefaultLauncher>();
         }
 
         [Benchmark]

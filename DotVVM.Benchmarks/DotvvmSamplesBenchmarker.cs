@@ -16,8 +16,8 @@ using Newtonsoft.Json.Linq;
 
 namespace DotVVM.Benchmarks
 {
-    public class DotvvmSamplesBenchmarker<TDotvvmStartup>
-            where TDotvvmStartup : IDotvvmStartup, new()
+    public class DotvvmSamplesBenchmarker<TAppLauncher>
+            where TAppLauncher : IApplicationLauncher, new()
     {
         public static Summary BenchmarkSamples(IConfig config, bool getRequests = true, bool postRequests = true)
         {
@@ -32,13 +32,13 @@ namespace DotVVM.Benchmarks
         {
             var currentPath = Directory.GetCurrentDirectory();
             while (Path.GetFileName(currentPath) != "DotVVM.Benchmarks") currentPath = Path.GetDirectoryName(currentPath);
-            currentPath = Path.Combine(Path.GetDirectoryName(currentPath), "dotvvm/src/DotVVM.Samples.Common");
-            return DotvvmTestHost.Create<TDotvvmStartup>(currentPath);
+            currentPath = Path.GetDirectoryName(currentPath);
+            return DotvvmTestHost.Create<TAppLauncher>(currentPath);
         }
 
         private static IEnumerable<Benchmark> AllGetBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TDotvvmStartup>), config)
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config)
                 .SelectMany(b => CreateBenchmarks(b, testHost, testHost.Configuration));
         }
 
@@ -46,7 +46,7 @@ namespace DotVVM.Benchmarks
         {
             if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
             Directory.CreateDirectory("testViewModels");
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TDotvvmStartup>), config)
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TAppLauncher>), config)
                 .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration));
         }
 
@@ -60,7 +60,7 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<Benchmark> CreateBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TDotvvmStartup>.GetUrl), false, new object[] { });
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.GetUrl), false, new object[] { });
             foreach (var url in urls)
             {
                 yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
@@ -118,8 +118,8 @@ namespace DotVVM.Benchmarks
                 catch { return ("", ""); }
             }
             ).ToArray();
-            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TDotvvmStartup>.Url), false, new object[] { });
-            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TDotvvmStartup>.SerializedViewModel), false, new object[] { });
+            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { });
+            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { });
 
             foreach (var (url, html) in uu)
             {
@@ -129,7 +129,7 @@ namespace DotVVM.Benchmarks
                     File.WriteAllText($"testViewModels/{fname}.json", json);
                     try
                     {
-                        new DotvvmPostbackBenchmarks<TDotvvmStartup> { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
+                        new DotvvmPostbackBenchmarks<TAppLauncher> { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
                     }
                     catch { continue; }
                     yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] {
@@ -144,7 +144,7 @@ namespace DotVVM.Benchmarks
     }
 
     public class DotvvmGetBenchmarks<T>
-            where T : IDotvvmStartup, new()
+            where T : IApplicationLauncher, new()
 
     {
         private DotvvmTestHost host = DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost();
@@ -160,7 +160,7 @@ namespace DotVVM.Benchmarks
     }
 
     public class DotvvmPostbackBenchmarks<T>
-            where T : IDotvvmStartup, new()
+            where T : IApplicationLauncher, new()
 
     {
         Dictionary<string, string> viewModels;
@@ -180,4 +180,6 @@ namespace DotVVM.Benchmarks
             if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
         }
     }
+
+    
 }
