@@ -34,7 +34,7 @@ namespace DotVVM.Benchmarks
             return app.UseDotVVM<DotVVM.Samples.BasicSamples.DotvvmStartup>(Path.Combine(currentPath, "dotvvm/src/DotVVM.Samples.Common"));
         }
 
-        public void ConfigServices(IServiceCollection services)
+        public void ConfigServices(IServiceCollection services, string currentPath)
         {
             services.AddDotVVM();
         }
@@ -47,7 +47,7 @@ namespace DotVVM.Benchmarks
             return app.UseDotVVM<WebApp.DotvvmStartup>(Path.Combine(currentPath, "DotVVM.Benchmarks/WebApp"));
         }
 
-        public void ConfigServices(IServiceCollection services)
+        public void ConfigServices(IServiceCollection services, string currentPath)
         {
             services.AddDotVVM();
         }
@@ -59,11 +59,17 @@ namespace DotVVM.Benchmarks
         {
             var conf = CreateTestConfiguration();
 
-            //var sum1 = BenchmarkRunner.Run<DotvvmSynthTestBenchmark>(conf);
+            var b = new List<Benchmark>();
 
-            //var sum2 = DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true);
+            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmSynthTestBenchmark), conf));
 
-            var sum3 = DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true);
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
+
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
+
+            b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
+
+            BenchmarkRunner.Run(b.ToArray(), conf);
 
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(config: conf);
@@ -90,6 +96,7 @@ namespace DotVVM.Benchmarks
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
+            //if (false)
             conf.Add(new PerfViewBenchmarkDiagnoser("C:/", 
                 methodColumns: new[] {
                         ("DotVVM.Framework!DotVVM.Framework.Hosting.DotvvmPresenter.ProcessRequest(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "ProcessRequest"),

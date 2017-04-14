@@ -121,8 +121,8 @@ let main argv =
     let directories = benchmarkNames |> Array.map(fun benchmark ->
         printfn "Processing results of %s" benchmark
         let csv = FSharp.Data.CsvFile.Load(IO.Path.Combine(resultsDirectory, benchmark + "-report.csv"))
-        let etwFileIndex = csv.Headers.Value |> Array.findIndex (fun x -> x = "ETW log file")
-        let attachedFiles = csv.Rows |> Seq.map (fun m -> (m, m.Columns.[etwFileIndex])) |> Seq.filter (fun f -> (snd f) <> null && IO.File.Exists(snd f)) |> Seq.toArray
+        let etwFileIndex = csv.Headers.Value |> Array.tryFindIndex ((=) "ETW log file")
+        let attachedFiles = csv.Rows |> Seq.filter (fun x -> etwFileIndex.IsSome) |> Seq.map (fun m -> (m, m.Columns.[etwFileIndex.Value])) |> Seq.filter (fun f -> (snd f) <> null && IO.File.Exists(snd f)) |> Seq.toArray
         printfn "Uploading %d files to IPFS" attachedFiles.Length
         let attachementDirectory = attachedFiles |> Seq.map (fun (b, f) -> (f, IO.Path.GetFileName(f))) |> createIpfsDirectory |> pushDirectory
         printfn "Added all attachements to %s directory" attachementDirectory.Hash
@@ -150,9 +150,10 @@ let main argv =
 
     printfn "All the stuff is in directory %s" ultimateDirectory.Hash
     
-    let etlDirectory = allAttachedFiles |> Seq.groupBy IO.Path.GetDirectoryName |> Seq.sortBy (fun (x, y) -> Seq.length y) |> Seq.head |> fst
-    printf "Delete attached files in %s directory? [Y/N]" etlDirectory
-    if Console.ReadLine().ToLower() = "Y" then allAttachedFiles |> Seq.iter IO.File.Delete
+    if allAttachedFiles.Count > 0 then
+        let etlDirectory = allAttachedFiles |> Seq.groupBy IO.Path.GetDirectoryName |> Seq.sortBy (fun (x, y) -> Seq.length y) |> Seq.head |> fst
+        printf "Delete attached files in %s directory? [Y/N]" etlDirectory
+        if Console.ReadLine().ToLower() = "Y" then allAttachedFiles |> Seq.iter IO.File.Delete
 
     printfn "%A" argv
     0 // return an integer exit code

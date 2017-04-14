@@ -54,7 +54,7 @@ namespace DotVVM.Benchmarks
                 .ConfigureServices(s => {
                     s.AddSingleton<IMarkupFileLoader>(_ => new VirtualMarkupFileLoader(new DefaultMarkupFileLoader()));
                     s.AddSingleton<ICsrfProtector, FakeCsrfProtector>();
-                    launcher.ConfigServices(s);
+                    launcher.ConfigServices(s, currentPath);
                 })
                 .Configure(a => {
                     configuration = launcher.ConfigApp(a, currentPath); //.UseDotVVM<TDotvvmStartup>(applicationPath, useErrorPages: false);
@@ -137,7 +137,7 @@ namespace DotVVM.Benchmarks
                 return app.UseDotVVM<DotvvmStartup>("`skks");
             }
 
-            public void ConfigServices(IServiceCollection services)
+            public void ConfigServices(IServiceCollection services, string currentPath)
             {
                 services.AddDotVVM();
             }
@@ -165,7 +165,7 @@ namespace DotVVM.Benchmarks
 
     public interface IApplicationLauncher
     {
-        void ConfigServices(IServiceCollection services);
+        void ConfigServices(IServiceCollection services, string currentPath);
         DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath);
     }
 }

@@ -14,7 +14,7 @@ namespace DotVVM.Benchmarks.WebApp.ViewModels
 
         public DefaultViewModel()
         {
-            Items = Enumerable.Range(0, 10000).Select(i => new SimpleItem { Title = "Hello from DotVVM!" }).ToList();
+            Items = Enumerable.Range(0, 100).Select(i => new SimpleItem { Title = "Hello from DotVVM!" }).ToList();
         }
 
         public void Click(string text)
