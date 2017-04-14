@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Hosting;
+using DotVVM.Framework.Security;
 using DotVVM.Framework.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -16,6 +17,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DotVVM.Benchmarks
 {
+    class FakeCsrfProtector : ICsrfProtector
+    {
+        public string GenerateToken(IDotvvmRequestContext context)
+        {
+            return "CSRF TOKEN";
+        }
+
+        public void VerifyToken(IDotvvmRequestContext context, string token)
+        {
+        }
+    }
+
     public class DotvvmTestHost
     {
         public readonly TestServer Server;
@@ -31,6 +44,7 @@ namespace DotVVM.Benchmarks
             this.Client = client;
         }
 
+
         public static DotvvmTestHost Create<TDotvvmStartup>(string applicationPath = "`undefinedLocation")
             where TDotvvmStartup: IDotvvmStartup, new()
         {
@@ -38,6 +52,7 @@ namespace DotVVM.Benchmarks
             var builder = new WebHostBuilder()
                 .ConfigureServices(s => {
                     s.AddSingleton<IMarkupFileLoader>(_ => new VirtualMarkupFileLoader(new DefaultMarkupFileLoader()));
+                    s.AddSingleton<ICsrfProtector, FakeCsrfProtector>();
                     s.AddDotVVM();
                 })
                 .Configure(a => {
@@ -52,6 +67,12 @@ namespace DotVVM.Benchmarks
         public async Task<DotvvmGetResponse> GetRequest(string url)
         {
             var response = await Client.SendAsync(new HttpRequestMessage(HttpMethod.Get, url));
+            return new DotvvmGetResponse(response, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<DotvvmGetResponse> PostRequest(string url, string payload, string type = "text/json")
+        {
+            var response = await Client.SendAsync(new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(payload, Encoding.UTF8, type), Headers = { { HostingConstants.SpaPostBackHeaderName, "true" } } });
             return new DotvvmGetResponse(response, await response.Content.ReadAsStringAsync());
         }
 

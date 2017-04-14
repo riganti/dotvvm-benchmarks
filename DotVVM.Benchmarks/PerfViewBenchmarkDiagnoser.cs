@@ -75,6 +75,7 @@ namespace DotVVM.Benchmarks
 
             var folderInfo = parameters.Benchmark.Parameters?.FolderInfo;
             if (string.IsNullOrEmpty(folderInfo)) folderInfo = parameters.Benchmark.FolderInfo;
+            folderInfo = new string(folderInfo.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
             string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo) + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".etl.zip");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             logFile.Add(parameters.Benchmark, path);

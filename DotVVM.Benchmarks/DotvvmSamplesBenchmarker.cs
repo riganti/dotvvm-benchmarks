@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
@@ -10,18 +12,20 @@ using BenchmarkDotNet.Parameters;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using DotVVM.Framework.Configuration;
+using Newtonsoft.Json.Linq;
 
 namespace DotVVM.Benchmarks
 {
     public class DotvvmSamplesBenchmarker<TDotvvmStartup>
             where TDotvvmStartup : IDotvvmStartup, new()
     {
-        public static Summary BenchmarkSamples(IConfig config)
+        public static Summary BenchmarkSamples(IConfig config, bool getRequests = true, bool postRequests = true)
         {
             var host = CreateSamplesTestHost();
-            var benchmarks = GetAllBenchmarks(config, host).ToArray();
+            var getBenchmarks = getRequests ? AllGetBenchmarks(config, host).ToArray() : new Benchmark[0];
+            var postBenchmarks = postRequests ? AllPostBenchmarks(config, host).ToArray() : new Benchmark[0];
 
-            return BenchmarkRunner.Run(benchmarks, config);
+            return BenchmarkRunner.Run(getBenchmarks.Concat(postBenchmarks).ToArray(), config);
         }
 
         public static DotvvmTestHost CreateSamplesTestHost()
@@ -32,49 +36,148 @@ namespace DotVVM.Benchmarks
             return DotvvmTestHost.Create<TDotvvmStartup>(currentPath);
         }
 
-        private static IEnumerable<Benchmark> GetAllBenchmarks(IConfig config, DotvvmTestHost testHost)
+        private static IEnumerable<Benchmark> AllGetBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmSamplesBenchmarks), config)
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TDotvvmStartup>), config)
                 .SelectMany(b => CreateBenchmarks(b, testHost, testHost.Configuration));
         }
 
+        private static IEnumerable<Benchmark> AllPostBenchmarks(IConfig config, DotvvmTestHost testHost)
+        {
+            if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
+            Directory.CreateDirectory("testViewModels");
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TDotvvmStartup>), config)
+                .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration));
+        }
+
+        private static IEnumerable<string> GetTestRoutes(DotvvmConfiguration config) =>
+            config.RouteTable
+            // TODO support parameters somehow
+            .Where(r => r.ParameterNames.Count() == 0)
+            .Where(r => !r.RouteName.Contains("Auth") && !r.RouteName.Contains("SPARedirect") && !r.RouteName.Contains("Error")) // Auth samples cause problems, because thei viewModels are not loaded
+            .Select(r => r.BuildUrl().TrimStart('~'));
+
         public static IEnumerable<Benchmark> CreateBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
         {
-            var requests = config.RouteTable.Select(r => new DotvvmSamplesBenchmarks.RequestInfo {
-                RouteName = r.RouteName,
-                RouteParams = r.ParameterNames.ToDictionary(i => i, e => r.DefaultValues.TryGetValue(e, out var obj) ? obj : "5"),
-                TestHost = host
-            })
-            .Where(r => r.RouteParams.Count == 0)
-            .Select(r => r.RouteName)
-            .Where(r => !r.Contains("Auth") && !r.Contains("SPARedirect")); // Auth samples cause problems, because thei viewModels are not loaded
-            var definiton = new ParameterDefinition(nameof(DotvvmSamplesBenchmarks.RouteInfo), false, new DotvvmSamplesBenchmarks.RequestInfo[0]);
-            foreach (var value in requests)
+            var urls = GetTestRoutes(config);
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TDotvvmStartup>.GetUrl), false, new object[] { });
+            foreach (var url in urls)
             {
-                yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, value) }));
+                yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
             }
         }
 
-        public class DotvvmSamplesBenchmarks
+        private static Regex postbackScriptRegex = new Regex(@".*dotvvm\.postback(script\(['""](?<CommandId>.+)['""]\))?[^a-zA-Z0-9'""]*['""](?<PageSpace>.*)['""],[^a-zA-Z0-9'""]*this,[^a-zA-Z0-9'""]*(?<TargetPath>\[.*\]),[^a-zA-Z0-9'""]*(['""](?<CommandId>.+)['""],[^a-zA-Z0-9'""]*)?['""](?<ControlId>.*)['""][^a-zA-Z0-9'""]*(true|false)[^a-zA-Z0-9'""]*['""](?<ValidationPath>.+)['""],.*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static IEnumerable<(string json, string name)> FindPostbacks(string html)
         {
-            public class RequestInfo
+            if (html.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) yield break;
+            var dom = new AngleSharp.Parser.Html.HtmlParser().Parse(html);
+            var vm = new Lazy<JObject>(() => JObject.Parse(dom.GetElementById("__dot_viewmodel_root").GetAttribute("value")));
+            foreach (var element in dom.All)
             {
-                public string RouteName { get; set; }
-                public Dictionary<string, object> RouteParams { get; set; }
-                public DotvvmTestHost TestHost { get; set; }
+                foreach (var attribute in element.Attributes)
+                {
+                    if (attribute.Value.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    var match = postbackScriptRegex.Match(attribute.Value);
+                    if (!match.Success) continue;
+                    var commandId = match.Groups["CommandId"].Value;
+                    var controlId = match.Groups["ControlId"].Value;
+                    var pageSpace = match.Groups["PageSpace"].Value;
+                    var targetPath = match.Groups["TargetPath"].Value;
+                    var validationPath = match.Groups["ValidationPath"].Value;
+
+                    Debug.Assert(pageSpace == "root");
+                    yield return (BuildPostbackPayload(vm.Value, commandId, controlId, validationPath, targetPath), commandId);
+                }
             }
+        }
 
-            private DotvvmTestHost host = CreateSamplesTestHost();
+        private static string BuildPostbackPayload(JObject vm, string commandId, string controlId, string validationPath, string targetPathArray)
+        {
+            var viewModel = vm["viewModel"].DeepClone();
+            var targetPath = JArray.Parse(targetPathArray);
+            // TODO: filter out unnecesary elements
+            return new JObject(
+                new JProperty("viewModel", viewModel),
+                new JProperty("currentPath", targetPath),
+                new JProperty("command", commandId),
+                new JProperty("controlUniqueId", controlId),
+                new JProperty("validationTargetPath", validationPath),
+                new JProperty("renderedResources", vm["renderedResources"].DeepClone())
+            ).ToString();
+        }
 
-            public string RouteInfo { get; set; }
+        public static IEnumerable<Benchmark> CreatePostbackBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
+        {
+            var urls = GetTestRoutes(config);
+            var uu = urls.AsParallel().Select(u => {
+                try
+                {
+                    return (u, host.GetRequest(u).Result.Contents);
+                }
+                catch { return ("", ""); }
+            }
+            ).ToArray();
+            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TDotvvmStartup>.Url), false, new object[] { });
+            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TDotvvmStartup>.SerializedViewModel), false, new object[] { });
 
-            [Benchmark]
-            public void TestDotvvmRequest()
+            foreach (var (url, html) in uu)
             {
-                var url = "/" + host.Configuration.RouteTable[RouteInfo].BuildUrl().TrimStart('~', '/');
-                var r = host.GetRequest(url).Result;
-                if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
+                foreach (var (json, name) in FindPostbacks(html))
+                {
+                    var fname = $"{ new string(name.Where(char.IsLetterOrDigit).ToArray()) }_{ json.GetHashCode() }";
+                    File.WriteAllText($"testViewModels/{fname}.json", json);
+                    try
+                    {
+                        new DotvvmPostbackBenchmarks<TDotvvmStartup> { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
+                    }
+                    catch { continue; }
+                    yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] {
+                        new ParameterInstance(urlDefinition, url),
+                        new ParameterInstance(vmDefiniton, fname)
+                    }));
+                }
             }
+        }
+
+
+    }
+
+    public class DotvvmGetBenchmarks<T>
+            where T : IDotvvmStartup, new()
+
+    {
+        private DotvvmTestHost host = DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost();
+
+        public string GetUrl { get; set; }
+
+        [Benchmark]
+        public void TestDotvvmRequest()
+        {
+            var r = host.GetRequest(GetUrl).Result;
+            if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
+        }
+    }
+
+    public class DotvvmPostbackBenchmarks<T>
+            where T : IDotvvmStartup, new()
+
+    {
+        Dictionary<string, string> viewModels;
+        public DotvvmPostbackBenchmarks()
+        {
+            viewModels = System.IO.Directory.EnumerateFiles("testViewModels", "*.json").ToDictionary(Path.GetFileNameWithoutExtension, File.ReadAllText);
+        }
+
+        private DotvvmTestHost host = DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost();
+        public string Url { get; set; }
+        public string SerializedViewModel { get; set; }
+
+        [Benchmark]
+        public void TestDotvvmRequest()
+        {
+            var r = host.PostRequest(Url, viewModels[SerializedViewModel]).Result;
+            if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
         }
     }
 }

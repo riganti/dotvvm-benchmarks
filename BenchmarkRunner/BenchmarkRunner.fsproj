@@ -59,7 +59,6 @@
     <None Include="App.config" />
     <Content Include="packages.config" />
     <None Include="Sample-report-full.json" />
-    <None Include="Sample-report.csv" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Albireo.Base32">

@@ -31,9 +31,9 @@ namespace DotVVM.Benchmarks
         {
             var conf = CreateTestConfiguration();
 
-            var sum1 = BenchmarkRunner.Run<DotvvmSynthTestBenchmark>(conf);
+            //var sum1 = BenchmarkRunner.Run<DotvvmSynthTestBenchmark>(conf);
 
-            //var sum2 = DotvvmSamplesBenchmarker<Samples.BasicSamples.DotvvmStartup>.BenchmarkSamples(conf);
+            var sum2 = DotvvmSamplesBenchmarker<Samples.BasicSamples.DotvvmStartup>.BenchmarkSamples(conf, postRequests: true, getRequests: false);
 
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(config: conf);
@@ -51,11 +51,14 @@ namespace DotVVM.Benchmarks
             conf.Add(BenchmarkDotNet.Exporters.DefaultExporters.JsonFull);
             conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true)));
             //conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(false)));
-            conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
+            //conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
             //conf.Add(WithRunCount(Job.Clr.WithGcServer(false)));
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Min);
-            conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
-            conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
+            conf.Add(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
+
+
+            //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
+            //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
             conf.Add(new PerfViewBenchmarkDiagnoser("C:/", 
                 methodColumns: new[] {

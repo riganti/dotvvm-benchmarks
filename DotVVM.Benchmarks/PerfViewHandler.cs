@@ -11,6 +11,7 @@ using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using Microsoft.Diagnostics.Tracing.Session;
 using Microsoft.Diagnostics.Tracing.Stacks;
 
+
 namespace DotVVM.Benchmarks
 {
     public class PerfViewHandler
@@ -135,27 +136,28 @@ namespace DotVVM.Benchmarks
                     //}
                     tlog.Dispose();
 
-                    //ZipWithPdbs(outFile);
-                    Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(outFile), "symbols"));
-                    MergeAndZip(outFile);
+                    if (rundown)
+                    {
+
+                        Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(outFile), "symbols"));
+                        MergeAndZip(outFile);
+                    }
+                    else
+                    {
+                        Zip(outFile);
+                    }
                     return callTree;
                 };
             }
 
-            //public void ZipWithPdbs(string fileName, bool doRundown)
-            //{
-            //    var etlWriter = new ZippedETLWriter(fileName);
-            //    if (!doRundown)
-            //        etlWriter.NGenSymbolFiles = false;
-            //    etlWriter.SymbolReader = App.GetSymbolReader(parsedArgs.DataFile);
-            //    if (!parsedArgs.ShouldZip)
-            //        etlWriter.Zip = false;
-            //    if (parsedArgs.StackCompression)
-            //        etlWriter.CompressETL = true;
-            //    etlWriter.DeleteInputFile = false;
-            //    if (File.Exists(App.LogFileName))
-            //        etlWriter.AddFile(App.LogFileName, "PerfViewLogFile.txt");
-            //}
+            public static void Zip(string fileName)
+            {
+                var etlWriter = new ZippedETLWriter(fileName);
+                etlWriter.Zip = true;
+                etlWriter.CompressETL = true;
+                etlWriter.DeleteInputFile = true;
+                etlWriter.WriteArchive();
+            }
 
             static string[] GetAllResultFiles(string etlFileName)
             {

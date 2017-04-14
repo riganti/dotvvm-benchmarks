@@ -66,6 +66,7 @@ let taskResult (t:Task<_>) = t.Result
 let main argv = 
     Array.iter ignore [||]
     let logGetter = redirectConsoleOut ()
+    printf "Benchmark directory: "
     let dirPath = IO.Path.GetFullPath(System.Console.ReadLine())
     let dotvvmDirectory = IO.Path.Combine(dirPath, "dotvvm")
     let benchmarkProject = IO.Path.Combine(dirPath, "DotVVM.Benchmarks", "DotVVM.Benchmarks.csproj")
@@ -79,19 +80,21 @@ let main argv =
         printfn "Moving results folder to %s" newName
         IO.Directory.Move(resultsDirectory, newName)
 
+    printf "DotVVM git version (`-` for working tree): "
     let gitVersion = System.Console.ReadLine()
 
     if gitVersion = "-" then 
-        printfn "Does not touching git, building against current working tree" 
-        //printfn "Does not touching git, building against current working tree (%s, %s, %dM)" 
-        //    (getGitResult dotvvmDirectory "rev-parse HEAD" |> Seq.exactlyOne)
-        //    (getGitResult dotvvmDirectory "rev-parse --abbrev-ref HEAD" |> Seq.exactlyOne)
-        //    (getGitResult dotvvmDirectory "status --short" |> Seq.length)
+        printfn "Does not touching git, building against current working tree (%s, %s, %dM)" 
+            (getGitResult dotvvmDirectory "rev-parse HEAD" |> Seq.exactlyOne)
+            (getGitResult dotvvmDirectory "rev-parse --abbrev-ref HEAD" |> Seq.exactlyOne)
+            (getGitResult dotvvmDirectory "status --short" |> Seq.length)
     else
         printfn "Checking out %s" gitVersion
         gitCommand dotvvmDirectory "fetch"
         gitCommand dotvvmDirectory "pull --all"
         checkout dotvvmDirectory false gitVersion
+    
+    printfn "Benchmarker is version %s" (getGitResult dirPath "rev-parse HEAD" |> Seq.exactlyOne)
 
     let allcommits = getGitResult dotvvmDirectory @"log --pretty=format:""%h"""
 
@@ -122,7 +125,7 @@ let main argv =
         let attachedFiles = csv.Rows |> Seq.map (fun m -> (m, m.Columns.[etwFileIndex])) |> Seq.filter (fun f -> (snd f) <> null && IO.File.Exists(snd f)) |> Seq.toArray
         printfn "Uploading %d files to IPFS" attachedFiles.Length
         let attachementDirectory = attachedFiles |> Seq.map (fun (b, f) -> (f, IO.Path.GetFileName(f))) |> createIpfsDirectory |> pushDirectory
-        printf "Added all attachements to %s directory" attachementDirectory.Hash
+        printfn "Added all attachements to %s directory" attachementDirectory.Hash
         let reportDirectory = 
             IO.Directory.EnumerateFiles(resultsDirectory)
             |> Seq.map (fun d -> d, IO.Path.GetFileName(d).Substring(benchmark.Length + 1))
@@ -134,7 +137,7 @@ let main argv =
                 node.Name <- "attachementMap.csv"
                 node.ToLink() :> Ipfs.IMerkleLink
             ) |> pushDirectory
-        printf "Reports published to %s" reportDirectory.Hash
+        printfn "Reports published to %s" reportDirectory.Hash
 
         allAttachedFiles.AddRange(attachedFiles |> Seq.map snd)// |> Seq.map IO.Path.GetDirectoryName |> Seq.distinct |> Seq.toArray
         
