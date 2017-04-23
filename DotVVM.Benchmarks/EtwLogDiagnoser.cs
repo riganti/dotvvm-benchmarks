@@ -94,6 +94,9 @@ namespace DotVVM.Benchmarks
         public ColumnCategory Category => ColumnCategory.Custom;
 
         public int PriorityInCategory => 0;
+        public bool IsNumeric => false;
+        public UnitType UnitType => UnitType.Dimensionless;
+        public string Legend => "File Name";
 
         public string GetValue(Summary summary, Benchmark benchmark)
         {
@@ -107,6 +110,11 @@ namespace DotVVM.Benchmarks
                 //return outFile;
             }
             return "-";
+        }
+
+        public string GetValue(Summary summary, Benchmark benchmark, ISummaryStyle style)
+        {
+            return GetValue(summary, benchmark);
         }
 
         public bool IsAvailable(Summary summary)

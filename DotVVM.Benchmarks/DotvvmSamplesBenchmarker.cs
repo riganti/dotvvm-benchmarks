@@ -38,8 +38,7 @@ namespace DotVVM.Benchmarks
         public static DotvvmTestHost CreateSamplesTestHost()
         {
             var currentPath = Directory.GetCurrentDirectory();
-            while (Path.GetFileName(currentPath) != "DotVVM.Benchmarks") currentPath = Path.GetDirectoryName(currentPath);
-            while (Path.GetFileName(Path.GetDirectoryName(currentPath)) == "DotVVM.Benchmarks") currentPath = Path.GetDirectoryName(currentPath);
+            while (!File.Exists(Path.Combine(currentPath, "DotVVM.Benchmarks.sln"))) currentPath = Path.GetDirectoryName(currentPath);
             return DotvvmTestHost.Create<TAppLauncher>(currentPath);
         }
 

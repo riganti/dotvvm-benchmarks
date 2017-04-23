@@ -136,11 +136,19 @@ namespace DotVVM.Benchmarks
         public ColumnCategory Category => ColumnCategory.Custom;
 
         public int PriorityInCategory => mIndex + 1200;
+        public bool IsNumeric => true;
+        public UnitType UnitType => UnitType.Dimensionless;
+        public string Legend => "Method Percentile";
 
         public string GetValue(Summary summary, Benchmark benchmark) =>
             dict.TryGetValue(benchmark, out var times) ?
             $"{times[mIndex] * 100f}%" :
             "-";
+
+        public string GetValue(Summary summary, Benchmark benchmark, ISummaryStyle style)
+        {
+            return GetValue(summary, benchmark);
+        }
 
         public bool IsAvailable(Summary summary) => true;
 
