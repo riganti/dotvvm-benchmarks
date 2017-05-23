@@ -84,7 +84,7 @@ namespace DotVVM.Benchmarks
             {
                 this.collectionHandle = collectionHandle;
                 this.process = process;
-                this.outFile = outFile;
+                this.outFile = Path.GetFullPath(outFile);
             }
             public Func<Dictionary<string, ETWHelper.CallTreeItem>> StopAndLazyMerge()
             {
@@ -95,6 +95,7 @@ namespace DotVVM.Benchmarks
                     var tmpFile = outFile + ".filtered.etl";
                     if (File.Exists(tmpFile)) File.Delete(tmpFile);
 
+#if FILTER_EVENTS
                     // WORKAROUND: ETWRelogger throws when more files are present
                     foreach (var f in GetAllResultFiles(outFile))
                     {
@@ -110,6 +111,7 @@ namespace DotVVM.Benchmarks
                         File.Delete(f);
                         File.Move(tmpFile, f);
                     }
+#endif
                     var allFiles = GetAllResultFiles(outFile);
                     if (allFiles.Length > 1)
                     {
@@ -136,7 +138,19 @@ namespace DotVVM.Benchmarks
                     //}
                     tlog.Dispose();
 
-                    if (rundown)
+                    if (true)
+                    {
+                        //File.Delete(etlx);
+                        //File.Delete(outFile);
+                        //foreach (var f in Directory.GetFiles(Path.GetDirectoryName(outFile)))
+                        //{
+                        //    if (Path.GetFileName(f).StartsWith(Path.GetFileNameWithoutExtension(outFile)))
+                        //    {
+                        //        File.Delete(f);
+                        //    }
+                        //}
+                    }
+                    else if (rundown)
                     {
 
                         Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(outFile), "symbols"));

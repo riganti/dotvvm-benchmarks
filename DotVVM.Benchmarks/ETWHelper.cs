@@ -52,24 +52,28 @@ namespace DotVVM.Benchmarks
         public static Dictionary<string, CallTreeItem> GetCallTree(StackSource stacks, out float timePerStack)
         {
             var callTree = new Dictionary<string, CallTreeItem>(StringComparer.OrdinalIgnoreCase);
-            void AddRecursively(StackSourceCallStackIndex index, int depth = 0, CallTreeItem p = null)
+            var currentStack = new HashSet<string>();
+            void AddRecursively(StackSourceCallStackIndex index, int depth = 0, CallTreeItem parent = null)
             {
                 var name = stacks.GetFrameName(stacks.GetFrameIndex(index), false);
                 if (name == "BROKEN") return;
+                var isRecursion = !currentStack.Add(name);
                 var caller = stacks.GetCallerIndex(index);
                 if (!callTree.TryGetValue(name, out var item)) callTree.Add(name, item = new CallTreeItem(name));
-                item.IncSamples++;
+                if (!isRecursion) item.IncSamples++;
                 if (depth == 0) item.Samples++;
-                else item.AddCallee(p);
-                p?.AddCaller(item);
+                else item.AddCallee(parent);
+                parent?.AddCaller(item);
 
                 if (caller != StackSourceCallStackIndex.Invalid) AddRecursively(caller, depth + 1, item);
+                if (!isRecursion) currentStack.Remove(name);
             }
             var metric = float.NaN;
             stacks.ForEach(stack => {
                 if (float.IsNaN(metric)) metric = stack.Metric;
                 if (metric != stack.Metric) throw new Exception();
                 if (stack.Count != 1) throw new Exception();
+                AddRecursively(stack.StackIndex);
                 AddRecursively(stack.StackIndex);
             });
             timePerStack = metric;
@@ -78,13 +82,24 @@ namespace DotVVM.Benchmarks
 
         public static IEnumerable<float> ComputeTimeFractions(Dictionary<string, CallTreeItem> callTree, string[] methodNames)
         {
-            var baseLine = callTree[methodNames.First()];
+            CallTreeItem FindMethod(string name)
+            {
+                if (callTree.TryGetValue(name, out var result)) return result;
+                else return callTree.FirstOrDefault(n => n.Key.StartsWith(name + "(", StringComparison.OrdinalIgnoreCase)).Value;
+            }
+
+            if (!(FindMethod(methodNames.First()) is CallTreeItem baseLine))
+            {
+                foreach (var f in methodNames)
+                    yield return 0f;
+                yield break;
+            }
             while (baseLine.Callers.Count == 1)
                 baseLine = baseLine.Callers.Single().Key;
 
             foreach (var m in methodNames)
             {
-                if (callTree.TryGetValue(m, out var cti))
+                if (FindMethod(m) is CallTreeItem cti)
                 {
                     yield return (float)cti.IncSamples / (float)baseLine.IncSamples;
                 }

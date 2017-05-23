@@ -80,6 +80,9 @@ let main argv =
         printfn "Moving results folder to %s" newName
         IO.Directory.Move(resultsDirectory, newName)
 
+    for logFile in IO.Directory.EnumerateFiles ("BenchmarkDotNet.Artifacts", "*.log") do
+        IO.File.Delete logFile
+
     printf "DotVVM git version (`-` for working tree): "
     let gitVersion = System.Console.ReadLine()
 
@@ -146,7 +149,11 @@ let main argv =
 
     let reportsFolder = emptyIpfsDir.Value.AddLinks(directories |> Seq.map (fun (b, r, a) -> r.ToLink(b))) |> pushDirectory
     let attFolder = emptyIpfsDir.Value.AddLinks(directories |> Seq.map (fun (b, r, a) -> a.ToLink(b))) |> pushDirectory
-    let ultimateDirectory = emptyIpfsDir.Value.AddLink(reportsFolder.ToLink("reports")).AddLink(attFolder.ToLink("attachedFiles")) |> pushDirectory
+    let ultimateDirectory = 
+        emptyIpfsDir.Value.AddLink(reportsFolder.ToLink("reports"))
+            .AddLink(attFolder.ToLink("attachedFiles"))
+            .AddLink((createIpfsDirectory (IO.Directory.EnumerateFiles("BenchmarkDotNet.Artifacts", "*.log") |> Seq.map (fun f -> (f, IO.Path.GetFileName(f))))).ToLink("log"))
+        |> pushDirectory
 
     printfn "All the stuff is in directory %s" ultimateDirectory.Hash
     

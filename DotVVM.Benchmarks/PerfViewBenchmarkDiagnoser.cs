@@ -11,6 +11,7 @@ using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Validators;
+using DotVVM.Framework.Utils;
 
 namespace DotVVM.Benchmarks
 {
@@ -48,6 +49,8 @@ namespace DotVVM.Benchmarks
         private void ProcessTrace(Dictionary<string, ETWHelper.CallTreeItem> callTree, Benchmark benchmark)
         {
             var times = ETWHelper.ComputeTimeFractions(callTree, methodColumns.Select(t => t.key).ToArray()).ToArray();
+            var serializedTree = callTree.OrderByDescending(k => k.Value.IncSamples).Select(t => $"\"{t.Key}\",{t.Value.IncSamples},{t.Value.Samples}");
+            File.WriteAllLines(logFile[benchmark] + ".methods.csv", serializedTree);
             methodPercentiles.TryAdd(benchmark, times);
         }
 
@@ -55,6 +58,7 @@ namespace DotVVM.Benchmarks
         {
             var ll = commandProcessor.StopAndLazyMerge();
             var benchmark = currentBenchmark;
+            if (actionQueue.Count > 8) FlushQueue();
             actionQueue.Enqueue(() => {
                 var stacks = ll();
                 ProcessTrace(stacks, benchmark);
@@ -76,7 +80,7 @@ namespace DotVVM.Benchmarks
             var folderInfo = parameters.Benchmark.Parameters?.FolderInfo;
             if (string.IsNullOrEmpty(folderInfo)) folderInfo = parameters.Benchmark.FolderInfo;
             folderInfo = new string(folderInfo.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
-            string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo) + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".etl.zip");
+            string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo).Replace("/", "_") + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".etl.zip");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             logFile.Add(parameters.Benchmark, path);
             try

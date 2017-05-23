@@ -100,7 +100,7 @@ namespace DotVVM.Benchmarks
 
         public string GetValue(Summary summary, Benchmark benchmark)
         {
-            if (fileName.TryGetValue(benchmark, out var val))
+            if (fileName.TryGetValue(benchmark, out var val) && File.Exists(val))
             {
                 return val;
                 //var outFile = Path.Combine("etwTraces", Path.GetFileName(val));

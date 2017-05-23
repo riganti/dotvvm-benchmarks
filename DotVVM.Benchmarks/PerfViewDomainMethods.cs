@@ -18,7 +18,7 @@ namespace DotVVM.Benchmarks
             a.Merge = false;
             a.InMemoryCircularBuffer = false;
             a.DotNetAllocSampled = false;
-            a.CpuSampleMSec = 2f; // 0.125f;
+            a.CpuSampleMSec = 1f; // 0.125f;
             //a.StackCompression = true;
 
             a.DataFile = outFile;

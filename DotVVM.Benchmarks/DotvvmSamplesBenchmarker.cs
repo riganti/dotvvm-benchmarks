@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -47,10 +48,10 @@ namespace DotVVM.Benchmarks
             IEnumerable<Benchmark> createMvcBenchmarks(Benchmark b)
             {
                 var urls = new[] { "/Home/Index" };
-                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.GetUrl), false, new object[] { });
+                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { });
                 foreach (var url in urls)
                 {
-                    new DotvvmGetBenchmarks<TAppLauncher> { GetUrl = url }.TestDotvvmRequest();
+                    new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.TestDotvvmRequest();
                     yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
                 }
             }
@@ -82,7 +83,7 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<Benchmark> CreateBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.GetUrl), false, new object[] { });
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { });
             foreach (var url in urls)
             {
                 yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
@@ -132,51 +133,46 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<Benchmark> CreatePostbackBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var uu = urls.AsParallel().Select(u => {
-                try
-                {
-                    return (u, host.GetRequest(u).Result.Contents);
-                }
-                catch { return ("", ""); }
-            }
-            ).ToArray();
             var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { });
             var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { });
-
-            foreach (var (url, html) in uu)
-            {
-                foreach (var (json, name) in FindPostbacks(html))
+            Directory.CreateDirectory("testViewModels");
+            var result = new ConcurrentBag<Benchmark>();
+            Parallel.ForEach(urls, url => {
+                try
                 {
-                    var fname = $"{ new string(name.Where(char.IsLetterOrDigit).ToArray()) }_{ json.GetHashCode() }";
-                    File.WriteAllText($"testViewModels/{fname}.json", json);
-                    try
+                    var html = host.GetRequest(url).Result.Contents;
+                    foreach (var (json, name) in FindPostbacks(html))
                     {
-                        new DotvvmPostbackBenchmarks<TAppLauncher> { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
+                        var fname = $"{ new string(name.Where(char.IsLetterOrDigit).ToArray()) }_{ json.GetHashCode() }";
+                        File.WriteAllText($"testViewModels/{fname}.json", json);
+                        try
+                        {
+                            new DotvvmPostbackBenchmarks<TAppLauncher> { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
+                        }
+                        catch { continue; }
+                        result.Add(new Benchmark(b.Target, b.Job, new ParameterInstances(new[] {
+                            new ParameterInstance(urlDefinition, url),
+                            new ParameterInstance(vmDefiniton, fname)
+                        })));
                     }
-                    catch { continue; }
-                    yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] {
-                        new ParameterInstance(urlDefinition, url),
-                        new ParameterInstance(vmDefiniton, fname)
-                    }));
                 }
-            }
+                catch { }
+            });
+            return result;
         }
-
-
     }
-
     public class DotvvmGetBenchmarks<T>
-            where T : IApplicationLauncher, new()
+             where T : IApplicationLauncher, new()
 
     {
         private DotvvmTestHost host = DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost();
 
-        public string GetUrl { get; set; }
+        public string Url { get; set; }
 
         [Benchmark]
         public void TestDotvvmRequest()
         {
-            var r = host.GetRequest(GetUrl).Result;
+            var r = host.GetRequest(Url).Result;
             if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
         }
     }
@@ -202,6 +198,4 @@ namespace DotVVM.Benchmarks
             if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
         }
     }
-
-    
 }
