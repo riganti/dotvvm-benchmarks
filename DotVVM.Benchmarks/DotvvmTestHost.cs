@@ -113,6 +113,7 @@ namespace DotVVM.Benchmarks
             {
                 var mf = new MarkupFile(path, path);
                 mf.GetType().GetProperty(nameof(MarkupFile.ContentsReaderFactory)).SetValue(mf, (Func<string>)(() => contents));
+                PathToFileMap[path] = mf;
             }
 
             public MarkupFile GetMarkup(DotvvmConfiguration configuration, string virtualPath)

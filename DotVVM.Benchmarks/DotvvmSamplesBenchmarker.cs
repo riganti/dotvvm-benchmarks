@@ -67,7 +67,6 @@ namespace DotVVM.Benchmarks
 
         private static IEnumerable<Benchmark> AllPostBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
-            if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
             Directory.CreateDirectory("testViewModels");
             return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TAppLauncher>), config)
                 .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration));
@@ -86,6 +85,11 @@ namespace DotVVM.Benchmarks
             var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { });
             foreach (var url in urls)
             {
+                try
+                {
+                    new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.TestDotvvmRequest();
+                }
+                catch { continue; }
                 yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
             }
         }

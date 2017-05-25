@@ -57,6 +57,8 @@ namespace DotVVM.Benchmarks
     {
         static void Main(string[] args)
         {
+            if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
+
             var conf = CreateTestConfiguration();
 
             var b = new List<Benchmark>();
@@ -71,7 +73,7 @@ namespace DotVVM.Benchmarks
 
             b.Sort();
             BenchmarkRunner.Run(
-                //b.GroupBy(t => t.Parameters.Items.Any(p => p.Name == nameof(DotvvmPostbackBenchmarks<DotvvmSamplesLauncher>.SerializedViewModel))).SelectMany(g => g.Take(4))
+                //b.GroupBy(t => t.Parameters.Items.Any(p => p.Name == nameof(DotvvmPostbackBenchmarks<DotvvmSamplesLauncher>.SerializedViewModel))).SelectMany(g => g.Take(27).Skip(25))
                 b
                 .ToArray(), conf);
 

@@ -140,15 +140,15 @@ namespace DotVVM.Benchmarks
 
                     if (true)
                     {
-                        //File.Delete(etlx);
-                        //File.Delete(outFile);
-                        //foreach (var f in Directory.GetFiles(Path.GetDirectoryName(outFile)))
-                        //{
-                        //    if (Path.GetFileName(f).StartsWith(Path.GetFileNameWithoutExtension(outFile)))
-                        //    {
-                        //        File.Delete(f);
-                        //    }
-                        //}
+                        File.Delete(etlx);
+                        File.Delete(outFile);
+                        foreach (var f in Directory.GetFiles(Path.GetDirectoryName(outFile)))
+                        {
+                            if (Path.GetFileName(f).StartsWith(Path.GetFileNameWithoutExtension(outFile)))
+                            {
+                                File.Delete(f);
+                            }
+                        }
                     }
                     else if (rundown)
                     {

@@ -49,8 +49,8 @@ namespace DotVVM.Benchmarks
         private void ProcessTrace(Dictionary<string, ETWHelper.CallTreeItem> callTree, Benchmark benchmark)
         {
             var times = ETWHelper.ComputeTimeFractions(callTree, methodColumns.Select(t => t.key).ToArray()).ToArray();
-            var serializedTree = callTree.OrderByDescending(k => k.Value.IncSamples).Select(t => $"\"{t.Key}\",{t.Value.IncSamples},{t.Value.Samples}");
-            File.WriteAllLines(logFile[benchmark] + ".methods.csv", serializedTree);
+            //var serializedTree = callTree.OrderByDescending(k => k.Value.IncSamples).Select(t => $"\"{t.Key}\",{t.Value.IncSamples},{t.Value.Samples}");
+            //File.WriteAllLines(logFile[benchmark] + ".methods.csv", serializedTree);
             methodPercentiles.TryAdd(benchmark, times);
         }
 
