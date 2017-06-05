@@ -121,26 +121,11 @@ namespace DotVVM.Benchmarks
                     }
                     else if (allFiles[0] != outFile)
                         File.Move(allFiles[0], outFile);
-
-                    var (tlog, etlx) = ETWHelper.GetTraceLog(outFile);
-                    var proc = tlog.Processes.FirstOrDefault(p => p.ProcessID == pid);
-                    var stacks = new TraceEventStackSource(proc.EventsInProcess.Filter(t => t is SampledProfileTraceData));
-                    var callTree = ETWHelper.GetCallTree(stacks, out var timeModifier);
-                    //if (GetAllResultFiles(outFile) is var allFiles && allFiles.Length > 1)
-                    //{
-                    //    string tempName = Path.ChangeExtension(outFile, ".etl.new");
-                    //    TraceEventSession.Merge(allFiles, tempName);
-                    //    // Delete the originals.  
-                    //    foreach (var mergeInput in allFiles)
-                    //        File.Delete(mergeInput);
-                    //    // Place the output in its final resting place.  
-                    //    File.Move(tempName, outFile);
-                    //}
-                    tlog.Dispose();
+                    var (etlx, callTree) = TryGetCallTree(pid);
 
                     if (true)
                     {
-                        File.Delete(etlx);
+                        if (File.Exists(etlx)) File.Delete(etlx);
                         File.Delete(outFile);
                         foreach (var f in Directory.GetFiles(Path.GetDirectoryName(outFile)))
                         {
@@ -163,6 +148,38 @@ namespace DotVVM.Benchmarks
                     return callTree;
                 };
             }
+
+            private (string etlx, Dictionary<string, ETWHelper.CallTreeItem> callTree) TryGetCallTree(int pid)
+            {
+                string maybeEtlx = null;
+                try
+                {
+                    var (tlog, etlx) = ETWHelper.GetTraceLog(outFile);
+                    maybeEtlx = etlx;
+                    using (tlog)
+                    {
+                        var proc = tlog.Processes.FirstOrDefault(p => p.ProcessID == pid);
+                        var stacks = new TraceEventStackSource(proc.EventsInProcess.Filter(t => t is SampledProfileTraceData));
+                        var callTree = ETWHelper.GetCallTree(stacks, out var timeModifier);
+                        //if (GetAllResultFiles(outFile) is var allFiles && allFiles.Length > 1)
+                        //{
+                        //    string tempName = Path.ChangeExtension(outFile, ".etl.new");
+                        //    TraceEventSession.Merge(allFiles, tempName);
+                        //    // Delete the originals.  
+                        //    foreach (var mergeInput in allFiles)
+                        //        File.Delete(mergeInput);
+                        //    // Place the output in its final resting place.  
+                        //    File.Move(tempName, outFile);
+                        //}
+                        return (etlx, callTree);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    return (maybeEtlx, new Dictionary<string, ETWHelper.CallTreeItem>());
+                }
+            }
+
 
             public static void Zip(string fileName)
             {

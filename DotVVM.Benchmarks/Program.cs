@@ -109,7 +109,11 @@ namespace DotVVM.Benchmarks
                         ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultOutputRenderer.WriteHtmlResponse(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class DotVVM.Framework.Controls.Infrastructure.DotvvmView)", "WriteHtmlResponse"),
                         ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultDotvvmViewBuilder.BuildView(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "BuildView"),
                         ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmBindableObject.GetValue(class DotVVM.Framework.Binding.DotvvmProperty,bool)", "BindableObject.GetValue"),
-                        ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
+#if !C_12c3562
+                    ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
+#else
+                    ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
+#endif
                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.PopulateViewModel(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class System.String)", "Deserialize"),
                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.ResolveCommand", "ResolveCommand"),
                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.BuildViewModel", "Serialize"),
