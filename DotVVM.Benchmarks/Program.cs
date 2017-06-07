@@ -75,6 +75,7 @@ namespace DotVVM.Benchmarks
             BenchmarkRunner.Run(
                 //b.GroupBy(t => t.Parameters.Items.Any(p => p.Name == nameof(DotvvmPostbackBenchmarks<DotvvmSamplesLauncher>.SerializedViewModel))).SelectMany(g => g.Take(27).Skip(25))
                 b
+                //b.Take(1)
                 .ToArray(), conf);
 
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
@@ -112,7 +113,7 @@ namespace DotVVM.Benchmarks
 #if !C_12c3562
                     ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
 #else
-                    ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
+                    ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,bool,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
 #endif
                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.PopulateViewModel(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class System.String)", "Deserialize"),
                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.ResolveCommand", "ResolveCommand"),
