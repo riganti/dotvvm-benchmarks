@@ -15,14 +15,13 @@ using BenchmarkDotNet.Parameters;
 using DotVVM.Framework.Configuration;
 using BenchmarkDotNet.Reports;
 using System.IO;
-using BenchmarkDotNet.Diagnostics.Windows;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-#if C_77b3b6f || DEBUG
-#else
-#error You should not build the solution by yourself (except for debugging purposes), use BenchmarkRunner
-#endif
+// #if C_77b3b6f || DEBUG
+// #else
+// #error You should not build the solution by yourself (except for debugging purposes), use BenchmarkRunner
+// #endif
 
 
 namespace DotVVM.Benchmarks
@@ -65,11 +64,11 @@ namespace DotVVM.Benchmarks
 
             b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmSynthTestBenchmark), conf));
 
-            b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
+            // b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
 
-            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
+            // b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
 
-            b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
+            // b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
 
             b.Sort();
             BenchmarkRunner.Run(
@@ -81,19 +80,34 @@ namespace DotVVM.Benchmarks
             //var sum = BenchmarkRunner.Run<Cpu_BranchPerdictor>(conf);
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(config: conf);
 #if DEBUG
-            Console.ReadLine();
+            // Console.ReadLine();
 #endif
         }
 
         static IConfig CreateTestConfiguration()
         {
+            var methodColumns = new[] {
+                                    ("DotVVM.Framework.Hosting.DotvvmPresenter::ProcessRequest", "ProcessRequest"),
+                                    ("DotVVM.Framework.Runtime.DefaultOutputRenderer::WriteHtmlResponse", "WriteHtmlResponse"),
+                                    ("DotVVM.Framework.Runtime.DefaultDotvvmViewBuilder::BuildView", "BuildView"),
+                                    ("DotVVM.Framework.Controls.DotvvmBindableObject::GetValue", "BindableObject.GetValue"),
+                                    ("DotVVM.Framework.Controls.DotvvmControlCollection::InvokeMissedPageLifeCycleEvent", "Lifecycle events"),
+                                    ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::PopulateViewModel", "Deserialize"),
+                                    ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::ResolveCommand", "ResolveCommand"),
+                                    ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::BuildViewModel", "Serialize"),
+                                };
             var conf = ManualConfig.Create(DefaultConfig.Instance);
             conf.Add(BenchmarkDotNet.Exporters.AsciiDocExporter.Default);
             conf.Add(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
             conf.Add(BenchmarkDotNet.Exporters.HtmlExporter.Default);
             conf.Add(BenchmarkDotNet.Exporters.DefaultExporters.JsonFull);
-            conf.Add(WithRunCount(Job.LegacyJitX86.WithGcServer(true)));
-            //conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(false)));
+            // conf.Add(WithRunCount(Job.LegacyJitX86.WithGcServer(true)));
+            conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true)));
+            // conf.Add(WithRunCount(Job.RyuJitX86.WithGcServer(true)));
+            // conf.Add(WithRunCount(Job.Mono.WithGcServer(true)));
+            // var llvmMono = new Job(Job.Mono.WithGcServer(true));
+            // llvmMono.Env.Jit = BenchmarkDotNet.Environments.Jit.Llvm;
+            // conf.Add(WithRunCount(llvmMono));
             //conf.Add(WithRunCount(Job.Clr.WithGcServer(true)));
             //conf.Add(WithRunCount(Job.Clr.WithGcServer(false)));
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Min);
@@ -103,22 +117,23 @@ namespace DotVVM.Benchmarks
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
+            conf.Add(new LinuxPerfBenchmarkDiagnoser(tempPath: "/home/exyi/tmp", methodColumns: methodColumns));
             //if (false)
-            conf.Add(new PerfViewBenchmarkDiagnoser("C:/",
-                methodColumns: new[] {
-                        ("DotVVM.Framework!DotVVM.Framework.Hosting.DotvvmPresenter.ProcessRequest(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "ProcessRequest"),
-                        ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultOutputRenderer.WriteHtmlResponse(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class DotVVM.Framework.Controls.Infrastructure.DotvvmView)", "WriteHtmlResponse"),
-                        ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultDotvvmViewBuilder.BuildView(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "BuildView"),
-                        ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmBindableObject.GetValue(class DotVVM.Framework.Binding.DotvvmProperty,bool)", "BindableObject.GetValue"),
-#if !C_12c3562
-                    ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
-#else
-                    ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,bool,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
-#endif
-                        ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.PopulateViewModel(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class System.String)", "Deserialize"),
-                        ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.ResolveCommand", "ResolveCommand"),
-                        ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.BuildViewModel", "Serialize"),
-                    }));
+            //             conf.Add(new PerfViewBenchmarkDiagnoser("C:/",
+            //                 methodColumns: new[] {
+            //                         ("DotVVM.Framework!DotVVM.Framework.Hosting.DotvvmPresenter.ProcessRequest(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "ProcessRequest"),
+            //                         ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultOutputRenderer.WriteHtmlResponse(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class DotVVM.Framework.Controls.Infrastructure.DotvvmView)", "WriteHtmlResponse"),
+            //                         ("DotVVM.Framework!DotVVM.Framework.Runtime.DefaultDotvvmViewBuilder.BuildView(class DotVVM.Framework.Hosting.IDotvvmRequestContext)", "BuildView"),
+            //                         ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmBindableObject.GetValue(class DotVVM.Framework.Binding.DotvvmProperty,bool)", "BindableObject.GetValue"),
+            // #if !C_12c3562
+            //                     ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
+            // #else
+            //                     ("DotVVM.Framework!DotVVM.Framework.Controls.DotvvmControlCollection.InvokeMissedPageLifeCycleEvent(class DotVVM.Framework.Hosting.IDotvvmRequestContext,value class DotVVM.Framework.Controls.LifeCycleEventType,bool,class DotVVM.Framework.Controls.DotvvmControl&)", "Lifecycle events"),
+            // #endif
+            //                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.PopulateViewModel(class DotVVM.Framework.Hosting.IDotvvmRequestContext,class System.String)", "Deserialize"),
+            //                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.ResolveCommand", "ResolveCommand"),
+            //                         ("DotVVM.Framework!DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer.BuildViewModel", "Serialize"),
+            //                     }));
             //conf.Add(new PmcDiagnoser());
             //conf.Add(new BenchmarkDotNet.Diagnostics.Windows.InliningDiagnoser());
 

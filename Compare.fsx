@@ -1,2 +1,2 @@
-#I "Summary.fsx"
+#load "Summary.fsx"
 
