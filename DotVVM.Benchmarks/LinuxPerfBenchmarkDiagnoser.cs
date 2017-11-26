@@ -125,8 +125,7 @@ namespace DotVVM.Benchmarks
             yield break;
         }
 
-        public RunMode GetRunMode(Benchmark benchmark) =>
-            methodPercentiles.ContainsKey(benchmark) ? RunMode.None : RunMode.ExtraRun;
+        public RunMode GetRunMode(Benchmark benchmark) => RunMode.ExtraRun;
 
         public void AfterGlobalSetup(DiagnoserActionParameters parameters)
         {

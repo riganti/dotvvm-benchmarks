@@ -56,19 +56,24 @@ namespace DotVVM.Benchmarks
     {
         static void Main(string[] args)
         {
+            Environment.SetEnvironmentVariable("COMPlus_PerfMapEnabled", "1");
             if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
 
             var conf = CreateTestConfiguration();
 
             var b = new List<Benchmark>();
-
+#if RUN_synth_tests
             b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmSynthTestBenchmark), conf));
-
-            // b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
-
-            // b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
-
-            // b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
+#endif
+#if RUN_dotvvm_samples
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
+#endif
+#if RUN_perf_samples
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
+#endif
+#if RUN_aspnet_mvc
+            b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
+#endif
 
             b.Sort();
             BenchmarkRunner.Run(
@@ -117,7 +122,10 @@ namespace DotVVM.Benchmarks
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
+#if DIAGNOSER_cpu_sampling
             conf.Add(new LinuxPerfBenchmarkDiagnoser(tempPath: "/home/exyi/tmp", methodColumns: methodColumns));
+            Console.WriteLine("CPU Sampling [ON]");
+#endif
             //if (false)
             //             conf.Add(new PerfViewBenchmarkDiagnoser("C:/",
             //                 methodColumns: new[] {
