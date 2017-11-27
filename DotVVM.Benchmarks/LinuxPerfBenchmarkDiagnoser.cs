@@ -159,16 +159,16 @@ namespace DotVVM.Benchmarks
         public string Legend => "% of inclusive CPU stacks spent in the method";
 
         public string GetValue(Summary summary, Benchmark benchmark) =>
-            dict.TryGetValue(benchmark, out var times) ?
-            $"{times[mIndex] * 100f}%" :
-            "-";
+            GetValue(summary, benchmark, new SummaryStyle { PrintUnitsInContent = true });
 
         public string GetValue(Summary summary, Benchmark benchmark, ISummaryStyle style) =>
-            GetValue(summary, benchmark);
+            dict.TryGetValue(benchmark, out var times) ?
+            $"{times[mIndex] * 100f}{( style.PrintUnitsInContent ? "%" : "")}" :
+            "-";
 
         public bool IsAvailable(Summary summary) => true;
 
-        public bool IsDefault(Summary summary, Benchmark benchmark) => false;
+        public bool IsDefault(Summary summary, Benchmark benchmark) => !dict.ContainsKey(benchmark);
     }
     public class FileNameColumn : IColumn
     {

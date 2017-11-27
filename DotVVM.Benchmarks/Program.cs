@@ -17,6 +17,7 @@ using BenchmarkDotNet.Reports;
 using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using BenchmarkDotNet.Characteristics;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -102,12 +103,13 @@ namespace DotVVM.Benchmarks
                                     ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::BuildViewModel", "Serialize"),
                                 };
             var conf = ManualConfig.Create(DefaultConfig.Instance);
-            conf.Add(BenchmarkDotNet.Exporters.AsciiDocExporter.Default);
+            // conf.Add(BenchmarkDotNet.Exporters.AsciiDocExporter.Default);
             conf.Add(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
             conf.Add(BenchmarkDotNet.Exporters.HtmlExporter.Default);
-            conf.Add(BenchmarkDotNet.Exporters.DefaultExporters.JsonFull);
+            // conf.Add(BenchmarkDotNet.Exporters.DefaultExporters.JsonFull);
+            conf.Add(new MyJsonExporter());
             // conf.Add(WithRunCount(Job.LegacyJitX86.WithGcServer(true)));
-            conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true)));
+            conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true).WithGcForce(false)));
             // conf.Add(WithRunCount(Job.RyuJitX86.WithGcServer(true)));
             // conf.Add(WithRunCount(Job.Mono.WithGcServer(true)));
             // var llvmMono = new Job(Job.Mono.WithGcServer(true));
