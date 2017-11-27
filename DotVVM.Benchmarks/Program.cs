@@ -174,6 +174,16 @@ namespace DotVVM.Benchmarks
         }
 
         [Benchmark]
+        public void TestParallelFor()
+        {
+            var ccc = host.AddFile("<html><head></head><body></body></html>", typeof(object));
+            Parallel.For(0, 50, i => {
+                var tt = host.GetRequest(ccc);
+                tt.Wait();
+            });
+        }
+
+        [Benchmark]
         public void TestMininalPage()
         {
             var ccc = host.AddFile("<html><head></head><body></body></html>", typeof(object));
