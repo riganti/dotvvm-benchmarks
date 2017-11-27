@@ -124,6 +124,7 @@ namespace DotVVM.Benchmarks
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Mean);
             //conf.Add(BenchmarkDotNet.Columns.StatisticColumn.AllStatistics);
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
+            conf.Add(new CpuTimeDiagnoser());
 #if DIAGNOSER_cpu_sampling
             conf.Add(new LinuxPerfBenchmarkDiagnoser(tempPath: "/home/exyi/tmp", methodColumns: methodColumns));
             Console.WriteLine("CPU Sampling [ON]");
