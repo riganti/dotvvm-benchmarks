@@ -75,7 +75,7 @@ namespace DotVVM.Benchmarks
                     { "Type", r.Benchmark.Target.Type.Name },
                     { "Method", r.Benchmark.Target.Method.Name },
                     { "MethodTitle", r.Benchmark.Target.MethodDisplayInfo },
-                    { "Parameters", r.Benchmark.Parameters.PrintInfo },
+                    { "Parameters", r.Benchmark.Parameters.Items.ToDictionary(p => p.Name, p => p.Value) },
                     // { "Properties", r.Benchmark.Job.ToSet().ToDictionary(p => p.Name, p => p.Value) }, // TODO
                     { "Statistics", r.ResultStatistics },
                     { "Columns", columns.Where(col => !col.IsDefault(summary, r.Benchmark)).ToDictionary(col => col.Id, col => col.GetValue(summary, r.Benchmark, summaryStyle)) }
