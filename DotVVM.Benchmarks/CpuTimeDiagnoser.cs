@@ -17,7 +17,7 @@ namespace DotVVM.Benchmarks
     {
         readonly GenericColumn TotalTimeColum = new GenericColumn("CPUTime.TotalTime", "Total CPU Time", true, UnitType.Dimensionless, "% of total CPU time");
         readonly GenericColumn KernelTimeColum = new GenericColumn("CPUTime.KernelTime", "Kernel CPU Time", true, UnitType.Dimensionless, "% of CPU time spent in kernel");
-        readonly GenericColumn UserTimeColum = new GenericColumn("CPUTime.UserTime", "Total CPU Time", true, UnitType.Dimensionless, "% of CPU time spent in userspace");
+        readonly GenericColumn UserTimeColum = new GenericColumn("CPUTime.UserTime", "User CPU Time", true, UnitType.Dimensionless, "% of CPU time spent in userspace");
         public CpuTimeDiagnoser()
         {
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -126,7 +126,7 @@ namespace DotVVM.Benchmarks
             conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
             conf.Add(new CpuTimeDiagnoser());
 #if DIAGNOSER_cpu_sampling
-            conf.Add(new LinuxPerfBenchmarkDiagnoser(tempPath: "/home/exyi/tmp", methodColumns: methodColumns));
+            conf.Add(new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true, enableRawPerfExport: false));
             Console.WriteLine("CPU Sampling [ON]");
 #endif
             //if (false)
@@ -173,7 +173,7 @@ namespace DotVVM.Benchmarks
             host = DotvvmTestHost.Create<DotvvmTestHost.DefaultLauncher>();
         }
 
-        [Benchmark]
+        // [Benchmark]
         public void TestParallelFor()
         {
             var ccc = host.AddFile("<html><head></head><body></body></html>", typeof(object));
@@ -192,7 +192,7 @@ namespace DotVVM.Benchmarks
             tt.Wait();
         }
 
-        [Benchmark]
+        // [Benchmark]
         public void Test1000Bindins()
         {
             var literal = "{{value: Property}} ";

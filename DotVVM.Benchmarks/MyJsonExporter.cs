@@ -99,7 +99,8 @@ namespace DotVVM.Benchmarks
                     col.IsNumeric,
                     col.Legend,
                     col.PriorityInCategory,
-                    col.UnitType
+                    col.UnitType,
+                    IsFileName = col is FileNameColumn
                 }) },
                 { "Benchmarks", benchmarks },
             };

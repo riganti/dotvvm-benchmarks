@@ -23,14 +23,17 @@ namespace DotVVM.Benchmarks
         private ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
         private PerfHandler.CollectionHandler commandProcessor;
 
-        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1)
+        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false)
         {
             this.tempPath = tempPath ?? Path.GetTempPath();
             this.methodColumns = methodColumns ?? new(string, string displayName)[0];
             this.maxParallelism = maxParallelism < 0 ? Environment.ProcessorCount : maxParallelism;
+            this.rawExportFile = enableRawPerfExport ? new Dictionary<Benchmark, string>() : null;
+            this.stacksExportFile = enableStacksExport ? new Dictionary<Benchmark, string>() : null;
         }
 
-        private Dictionary<Benchmark, string> logFile = new Dictionary<Benchmark, string>();
+        private readonly Dictionary<Benchmark, string> rawExportFile;
+        private readonly Dictionary<Benchmark, string> stacksExportFile;
         private ConcurrentDictionary<Benchmark, float[]> methodPercentiles = new ConcurrentDictionary<Benchmark, float[]>();
 
         private (string key, string displayName)[] methodColumns;
@@ -89,15 +92,16 @@ namespace DotVVM.Benchmarks
             folderInfo = new string(folderInfo.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
             string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo).Replace("/", "_") + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".perfdata");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
-            logFile.Add(parameters.Benchmark, path);
+            rawExportFile?.Add(parameters.Benchmark, path);
+            stacksExportFile?.Add(parameters.Benchmark, Path.ChangeExtension(path, "stacks.gz"));
             try
             {
-                commandProcessor = PerfHandler.StartCollection(path, parameters.Process);
+                commandProcessor = PerfHandler.StartCollection(path, parameters.Process, this.rawExportFile == null, stacksExportFile?.GetValue(parameters.Benchmark));
                 currentBenchmark = parameters.Benchmark;
             }
             catch (Exception ex)
             {
-                logFile.Remove(parameters.Benchmark);
+                rawExportFile?.Remove(parameters.Benchmark);
                 new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineError("Could not start trace: " + ex);
             }
         }
@@ -111,7 +115,9 @@ namespace DotVVM.Benchmarks
             FlushQueue();
             return new SimpleColumnProvider(
                 methodColumns.Select((m, i) => (IColumn)new MethodTimeFractionColumn(m.displayName, methodPercentiles, i))
-                  .Concat(new[] { new FileNameColumn(logFile) })
+                  .Concat(new[] { rawExportFile != null ? new FileNameColumn("perf.data file", "perf_data_file", rawExportFile) : null })
+                  .Concat(new[] { stacksExportFile != null ? new FileNameColumn("CPU stacks file", "CPU_stacks_file", stacksExportFile) : null })
+                  .Where(c => c != null)
                   .ToArray()
             );
         }
@@ -174,14 +180,16 @@ namespace DotVVM.Benchmarks
     {
         private readonly Dictionary<Benchmark, string> fileName;
 
-        public FileNameColumn(Dictionary<Benchmark, string> fileName)
+        public FileNameColumn(string colName, string id, Dictionary<Benchmark, string> fileName)
         {
+            Id = id;
+            ColumnName = colName;
             this.fileName = fileName;
         }
 
-        public string Id => typeof(FileNameColumn).FullName;
+        public string Id { get; }
 
-        public string ColumnName => "ETW log file";
+        public string ColumnName { get; }
 
         public bool AlwaysShow => false;
 
@@ -197,11 +205,6 @@ namespace DotVVM.Benchmarks
             if (fileName.TryGetValue(benchmark, out var val) && File.Exists(val))
             {
                 return val;
-                //var outFile = Path.Combine("etwTraces", Path.GetFileName(val));
-                //Directory.CreateDirectory(Path.GetDirectoryName(outFile));
-                //File.Copy(val, Path.Combine(summary.ResultsDirectoryPath, outFile));
-                //File.Delete(val);
-                //return outFile;
             }
             return "-";
         }
