@@ -173,7 +173,7 @@ namespace DotVVM.Benchmarks
             host = DotvvmTestHost.Create<DotvvmTestHost.DefaultLauncher>();
         }
 
-        // [Benchmark]
+        Benchmark]
         public void TestParallelFor()
         {
             var ccc = host.AddFile("<html><head></head><body></body></html>", typeof(object));
@@ -192,7 +192,7 @@ namespace DotVVM.Benchmarks
             tt.Wait();
         }
 
-        // [Benchmark]
+        [Benchmark]
         public void Test1000Bindins()
         {
             var literal = "{{value: Property}} ";

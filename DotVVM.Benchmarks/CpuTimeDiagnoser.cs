@@ -42,7 +42,6 @@ namespace DotVVM.Benchmarks
                 var kernelTime = parameters.Process.PrivilegedProcessorTime - startKernelCpuTime;
                 var userTime = parameters.Process.UserProcessorTime - startUserCpuTime;
                 var cpuTime = parameters.Process.TotalProcessorTime - startCpuTime;
-                Debugger.Break();
 
                 this.TotalTimeColum.AddValue(parameters.Benchmark, ((cpuTime / totalTime) * 100).ToString(), "%");
                 this.KernelTimeColum.AddValue(parameters.Benchmark, ((kernelTime / totalTime) * 100).ToString(), "%");
@@ -136,6 +135,6 @@ namespace DotVVM.Benchmarks
 
         public bool IsAvailable(Summary summary) => values.Count > 0;
 
-        public bool IsDefault(Summary summary, Benchmark benchmark) => values.ContainsKey(benchmark);
+        public bool IsDefault(Summary summary, Benchmark benchmark) => !values.ContainsKey(benchmark);
     }
 }
