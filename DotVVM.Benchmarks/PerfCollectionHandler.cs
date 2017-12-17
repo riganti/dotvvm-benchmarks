@@ -21,7 +21,13 @@ namespace DotVVM.Benchmarks
                 throw new Exception("perf did not exit");
         }
 
-        public static CollectionHandler StartCollection(string outFile, Process process, bool removeOutFile = true, string exportStacksFile = null)
+        public static void ExecMapgen(Process process)
+        {
+            Process.Start("python2", $"./dotnet-mapgen-v2.py generate {process.Id}").WaitForExit();
+            Process.Start("python2", $"./dotnet-mapgen-v2.py merge {process.Id}").WaitForExit();
+        }
+
+        public static CollectionHandler StartCollection(string outFile, Process process, bool removeOutFile = true, string exportStacksFile = null, bool allowDotnetMapgen = true)
         {
             // touch the file
             // File.Create(outFile).Dispose();
@@ -30,7 +36,7 @@ namespace DotVVM.Benchmarks
             var perfProcess = Process.Start(args);
             if (perfProcess.WaitForExit(100))
                 throw new Exception("perf has exited ;(");
-            return new CollectionHandler(perfProcess, process, outFile, removeOutFile, exportStacksFile);
+            return new CollectionHandler(perfProcess, process, outFile, removeOutFile, exportStacksFile, allowDotnetMapgen);
         }
 
         public class CollectionHandler
@@ -40,9 +46,11 @@ namespace DotVVM.Benchmarks
             private readonly bool removeOutFile;
             private readonly string exportStacksFile;
             private readonly string outFile;
+            private readonly bool allowDotnetMapgen;
 
-            public CollectionHandler(Process perfProcess, Process process, string outFile, bool removeOutFile = true, string exportStacksFile = null)
+            public CollectionHandler(Process perfProcess, Process process, string outFile, bool removeOutFile = true, string exportStacksFile = null, bool allowDotnetMapgen = true)
             {
+                this.allowDotnetMapgen = allowDotnetMapgen;
                 this.perfProcess = perfProcess;
                 this.process = process;
                 this.removeOutFile = removeOutFile;
@@ -96,7 +104,7 @@ namespace DotVVM.Benchmarks
                 args.RedirectStandardOutput = true;
                 args.RedirectStandardInput = true;
                 var proc = Process.Start(args);
-                using(var input = proc.StandardInput)
+                using (var input = proc.StandardInput)
                 {
                     input.WriteLine($"perf script -i {file} | FlameGraph/stackcollapse-perf.pl --all");
                 }

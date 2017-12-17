@@ -8,6 +8,9 @@
     <AssemblyName>DotVVM.Benchmarks</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resources/*" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\dotvvm\src\DotVVM.Framework.Hosting.AspNetCore\DotVVM.Framework.Hosting.AspNetCore.csproj" />
     <ProjectReference Include="..\dotvvm\src\DotVVM.Samples.BasicSamples.AspNetCore\DotVVM.Samples.BasicSamples.AspNetCore.csproj" />
   </ItemGroup>

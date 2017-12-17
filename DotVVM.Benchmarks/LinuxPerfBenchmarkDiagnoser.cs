@@ -23,10 +23,11 @@ namespace DotVVM.Benchmarks
         private ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
         private PerfHandler.CollectionHandler commandProcessor;
 
-        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false)
+        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false, bool allowDotnetMapgen = false)
         {
             this.tempPath = tempPath ?? Path.GetTempPath();
             this.methodColumns = methodColumns ?? new(string, string displayName)[0];
+            this.allowDotnetMapgen = allowDotnetMapgen;
             this.maxParallelism = maxParallelism < 0 ? Environment.ProcessorCount : maxParallelism;
             this.rawExportFile = enableRawPerfExport ? new Dictionary<Benchmark, string>() : null;
             this.stacksExportFile = enableStacksExport ? new Dictionary<Benchmark, string>() : null;
@@ -37,6 +38,7 @@ namespace DotVVM.Benchmarks
         private ConcurrentDictionary<Benchmark, float[]> methodPercentiles = new ConcurrentDictionary<Benchmark, float[]>();
 
         private (string key, string displayName)[] methodColumns;
+        private readonly bool allowDotnetMapgen;
         private int maxParallelism;
         private Benchmark currentBenchmark;
 
@@ -96,7 +98,13 @@ namespace DotVVM.Benchmarks
             stacksExportFile?.Add(parameters.Benchmark, Path.ChangeExtension(path, "stacks.gz"));
             try
             {
-                commandProcessor = PerfHandler.StartCollection(path, parameters.Process, this.rawExportFile == null, stacksExportFile?.GetValue(parameters.Benchmark));
+                if (this.allowDotnetMapgen)
+                    PerfHandler.ExecMapgen(parameters.Process);
+            }
+            catch { }
+            try
+            {
+                commandProcessor = PerfHandler.StartCollection(path, parameters.Process, this.rawExportFile == null, stacksExportFile?.GetValue(parameters.Benchmark), this.allowDotnetMapgen);
                 currentBenchmark = parameters.Benchmark;
             }
             catch (Exception ex)
