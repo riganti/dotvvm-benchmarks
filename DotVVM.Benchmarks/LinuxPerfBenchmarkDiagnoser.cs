@@ -23,7 +23,7 @@ namespace DotVVM.Benchmarks
         private ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
         private PerfHandler.CollectionHandler commandProcessor;
 
-        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false, bool allowDotnetMapgen = false)
+        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false, bool allowDotnetMapgen = true)
         {
             this.tempPath = tempPath ?? Path.GetTempPath();
             this.methodColumns = methodColumns ?? new(string, string displayName)[0];

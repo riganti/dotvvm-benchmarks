@@ -23,6 +23,7 @@ namespace DotVVM.Benchmarks
 
         public static void ExecMapgen(Process process)
         {
+            Console.WriteLine($"mapgen process {process.Id}");
             Process.Start("python2", $"./dotnet-mapgen-v2.py generate {process.Id}").WaitForExit();
             Process.Start("python2", $"./dotnet-mapgen-v2.py merge {process.Id}").WaitForExit();
         }

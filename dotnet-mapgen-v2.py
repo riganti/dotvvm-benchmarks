@@ -98,7 +98,7 @@ def generate(pid):
             succeeded += 1
         else:
             failed += 1
-            #print ("crossgen failed: %s | %s | %s" % (crossgen, asm_list, assembly))
+            #print ("crossgen failed: %s" % (assembly))
     print("crossgen map generation: %d succeeded, %d failed" %
           (succeeded, failed))
 
@@ -133,6 +133,7 @@ def merge(pid):
         matches = glob.glob("/tmp/%s.ni.{*}.map" %
                             os.path.splitext(os.path.basename(assembly))[0])
         if len(matches) == 0:
+            #print ("perf map merge failed: %s" % (assembly))
             failed += 1
         else:
             append_perf_map(assembly, matches[0], pid)
