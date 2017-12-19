@@ -87,14 +87,16 @@ namespace DotVVM.Benchmarks
             {
                 try
                 {
-                    new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.TestDotvvmRequest();
+                    new DotvvmGetBenchmarks<TAppLauncher>(host) { Url = url }.TestDotvvmRequest();
                 }
                 catch { continue; }
                 yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
             }
         }
 
-        private static Regex postbackScriptRegex = new Regex(@".*dotvvm\.postback(script\(['""](?<CommandId>.+)['""]\))?[^a-zA-Z0-9'""]*['""](?<PageSpace>.*)['""],[^a-zA-Z0-9'""]*this,[^a-zA-Z0-9'""]*(?<TargetPath>\[.*\]),[^a-zA-Z0-9'""]*(['""](?<CommandId>.+)['""],[^a-zA-Z0-9'""]*)?['""](?<ControlId>.*)['""][^a-zA-Z0-9'""]*(true|false)[^a-zA-Z0-9'""]*['""](?<ValidationPath>.+)['""],.*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        // V2.0 sample: <dotvvm.postBack("root",this,["Children/[$index]", "Children/[$index]"],"J0P/GrlKdT/ylW4Q","",null,["validate-root"],undefined);event.stopPropagation();return false;>
+        private static Regex postbackScriptRegex1 = new Regex(@".*dotvvm\.postback(script\(['""](?<CommandId>.+)['""]\))?[^a-zA-Z0-9'""]*['""](?<PageSpace>.*)['""],[^a-zA-Z0-9'""]*this,[^a-zA-Z0-9'""]*(?<TargetPath>\[.*\]),[^a-zA-Z0-9'""]*(['""](?<CommandId>.+)['""],[^a-zA-Z0-9'""]*)?['""](?<ControlId>.*)['""][^][a-zA-Z0-9'""]*(true|false|null)[^][a-zA-Z0-9'""]*(['""](?<ValidationPath>.+)['""],)?.*?(['""](?<ValidationPH>validate.*)['""])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex postbackScriptRegex2 = new Regex(@".*dotvvm\.postback(script\(['""](?<CommandId>.+)['""]\))?[^a-zA-Z0-9'""]*['""](?<PageSpace>.*)['""],[^a-zA-Z0-9'""]*this,[^a-zA-Z0-9'""]*(?<TargetPath>\[.*\]),[^a-zA-Z0-9'""]*(['""](?<CommandId>.+)['""],[^a-zA-Z0-9'""]*)?['""](?<ControlId>.*)['""][^][a-zA-Z0-9'""]*(true|false|null)[^][a-zA-Z0-9'""]*(['""](?<ValidationPath>.+)['""],)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static IEnumerable<(string json, string name)> FindPostbacks(string html)
         {
             if (html.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) yield break;
@@ -105,13 +107,32 @@ namespace DotVVM.Benchmarks
                 foreach (var attribute in element.Attributes)
                 {
                     if (attribute.Value.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) continue;
-                    var match = postbackScriptRegex.Match(attribute.Value);
+                    var match = postbackScriptRegex1.Match(attribute.Value);
+                    if (!match.Success) match = postbackScriptRegex2.Match(attribute.Value);
                     if (!match.Success) continue;
                     var commandId = match.Groups["CommandId"].Value;
                     var controlId = match.Groups["ControlId"].Value;
                     var pageSpace = match.Groups["PageSpace"].Value;
                     var targetPath = match.Groups["TargetPath"].Value;
                     var validationPath = match.Groups["ValidationPath"].Value;
+
+
+                    targetPath = targetPath.Replace("[$index]", "[0]");
+
+                    if (String.IsNullOrEmpty(validationPath))
+                    {
+                        var valHandler = match.Groups["ValidationPH"].Value;
+                        if (valHandler == "validate-root")
+                            validationPath = "dotvvm.viewModelObservables['root']";
+                        else if (valHandler == "validate-this")
+                            validationPath = "$data";
+                        else if (String.IsNullOrEmpty(valHandler))
+                            validationPath = null;
+                        else if (valHandler.StartsWith("validate\", {path:\""))
+                            validationPath = valHandler.Substring("validate\", {path:\"".Length);
+                        else
+                            Console.WriteLine($"unsupported validation handler = `{valHandler}`");
+                    }
 
                     Debug.Assert(pageSpace == "root");
                     yield return (BuildPostbackPayload(vm.Value, commandId, controlId, validationPath, targetPath), commandId);
@@ -130,6 +151,9 @@ namespace DotVVM.Benchmarks
                 new JProperty("command", commandId),
                 new JProperty("controlUniqueId", controlId),
                 new JProperty("validationTargetPath", validationPath),
+                new JProperty("additionalData",
+                    new JObject(
+                        new JProperty("validationTargetPath", validationPath))),
                 new JProperty("renderedResources", vm["renderedResources"].DeepClone())
             ).ToString();
         }
@@ -151,7 +175,7 @@ namespace DotVVM.Benchmarks
                         File.WriteAllText($"testViewModels/{fname}.json", json);
                         try
                         {
-                            new DotvvmPostbackBenchmarks<TAppLauncher> { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
+                            new DotvvmPostbackBenchmarks<TAppLauncher>(host) { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
                         }
                         catch { continue; }
                         result.Add(new Benchmark(b.Target, b.Job, new ParameterInstances(new[] {
@@ -169,7 +193,12 @@ namespace DotVVM.Benchmarks
              where T : IApplicationLauncher, new()
 
     {
-        private DotvvmTestHost host = DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost();
+        public DotvvmGetBenchmarks() : this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost()) { }
+        public DotvvmGetBenchmarks(DotvvmTestHost host)
+        {
+            this.host = host;
+        }
+        private DotvvmTestHost host;
 
         public string Url { get; set; }
 
@@ -186,12 +215,13 @@ namespace DotVVM.Benchmarks
 
     {
         Dictionary<string, string> viewModels;
-        public DotvvmPostbackBenchmarks()
+        public DotvvmPostbackBenchmarks(): this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost()) {}
+        public DotvvmPostbackBenchmarks(DotvvmTestHost host)
         {
             viewModels = System.IO.Directory.EnumerateFiles("testViewModels", "*.json").ToDictionary(Path.GetFileNameWithoutExtension, File.ReadAllText);
+            this.host = host;
         }
-
-        private DotvvmTestHost host = DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost();
+        private DotvvmTestHost host;
         public string Url { get; set; }
         public string SerializedViewModel { get; set; }
 

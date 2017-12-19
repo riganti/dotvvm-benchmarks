@@ -44,10 +44,13 @@ namespace DotVVM.Benchmarks
             this.Client = client;
         }
 
+        private static int undefinedLocationCounter = 0;
 
-        public static DotvvmTestHost Create<TAppLauncher>(string currentPath = "`undefinedLocation")
+        public static DotvvmTestHost Create<TAppLauncher>(string currentPath = null)
             where TAppLauncher : IApplicationLauncher, new()
         {
+            currentPath = currentPath ?? ("`undefinedLocation" + Interlocked.Increment(ref undefinedLocationCounter));
+
             DotvvmConfiguration configuration = null;
             var launcher = new TAppLauncher();
             var builder = new WebHostBuilder()

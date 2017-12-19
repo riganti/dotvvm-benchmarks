@@ -8,7 +8,7 @@
             "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-dd",
+            "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "dotnet",
             "args": [ "${workspaceRoot}/DotVVM.Benchmarks/bin/Debug/netcoreapp2.0/DotVVM.Benchmarks.dll" ],
