@@ -64,8 +64,8 @@ namespace DotVVM.Benchmarks
 
             var b = new List<Benchmark>();
 #if RUN_synth_tests
-            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
-            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
+            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf).Benchmarks);
+            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf).Benchmarks);
 #endif
 #if RUN_dotvvm_samples
             b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));

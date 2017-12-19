@@ -55,20 +55,20 @@ namespace DotVVM.Benchmarks
                     yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
                 }
             }
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config)
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config).Benchmarks
                 .SelectMany(createMvcBenchmarks);
         }
 
         private static IEnumerable<Benchmark> AllGetBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config)
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config).Benchmarks
                 .SelectMany(b => CreateBenchmarks(b, testHost, testHost.Configuration));
         }
 
         private static IEnumerable<Benchmark> AllPostBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
             Directory.CreateDirectory("testViewModels");
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TAppLauncher>), config)
+            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TAppLauncher>), config).Benchmarks
                 .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration));
         }
 

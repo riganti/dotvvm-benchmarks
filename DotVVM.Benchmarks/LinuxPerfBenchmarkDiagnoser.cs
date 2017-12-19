@@ -86,7 +86,7 @@ namespace DotVVM.Benchmarks
 
         public void BeforeMainRun(DiagnoserActionParameters parameters)
         {
-            new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteInfo("Starting sampling profiler.");
+            new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineInfo("Starting sampling profiler.");
             if (commandProcessor != null) throw new Exception("Collection is already running.");
 
             var folderInfo = parameters.Benchmark.Parameters?.FolderInfo;
