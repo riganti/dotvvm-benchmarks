@@ -74,7 +74,11 @@ namespace DotVVM.Benchmarks
                         try
                         {
                             if (this.removeOutFile && File.Exists(this.outFile))
+                            {
                                 File.Delete(this.outFile);
+                                File.Delete($"/tmp/perf-{this.process.Id}.map");
+                                File.Delete($"/tmp/perfinfo-{this.process.Id}.map");
+                            }
                         }
                         catch { }
                     }

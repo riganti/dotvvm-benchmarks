@@ -163,7 +163,10 @@ namespace DotVVM.Benchmarks
             var urls = GetTestRoutes(config);
             var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { });
             var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { });
-            Directory.CreateDirectory("testViewModels");
+            var viewModelDirectory = Environment.GetEnvironmentVariable("DotvvmTests_ViewModelDirectory") ??
+                Path.GetFullPath("testViewModels");
+            Environment.SetEnvironmentVariable("DotvvmTests_ViewModelDirectory", viewModelDirectory);
+            Directory.CreateDirectory(viewModelDirectory);
             var result = new ConcurrentBag<Benchmark>();
             Parallel.ForEach(urls, url => {
                 try
@@ -172,7 +175,7 @@ namespace DotVVM.Benchmarks
                     foreach (var (json, name) in FindPostbacks(html))
                     {
                         var fname = $"{ new string(name.Where(char.IsLetterOrDigit).ToArray()) }_{ json.GetHashCode() }";
-                        File.WriteAllText($"testViewModels/{fname}.json", json);
+                        File.WriteAllText(Path.Combine(viewModelDirectory, $"{fname}.json"), json);
                         try
                         {
                             new DotvvmPostbackBenchmarks<TAppLauncher>(host) { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
@@ -214,11 +217,11 @@ namespace DotVVM.Benchmarks
             where T : IApplicationLauncher, new()
 
     {
-        Dictionary<string, string> viewModels;
+        Dictionary<string, Lazy<string>> viewModels;
         public DotvvmPostbackBenchmarks(): this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost()) {}
         public DotvvmPostbackBenchmarks(DotvvmTestHost host)
         {
-            viewModels = System.IO.Directory.EnumerateFiles("testViewModels", "*.json").ToDictionary(Path.GetFileNameWithoutExtension, File.ReadAllText);
+            viewModels = System.IO.Directory.EnumerateFiles(Environment.GetEnvironmentVariable("DotvvmTests_ViewModelDirectory"), "*.json").ToDictionary(Path.GetFileNameWithoutExtension, f => new Lazy<string>(() => File.ReadAllText(f)));
             this.host = host;
         }
         private DotvvmTestHost host;
@@ -228,7 +231,7 @@ namespace DotVVM.Benchmarks
         [Benchmark]
         public void TestDotvvmRequest()
         {
-            var r = host.PostRequest(Url, viewModels[SerializedViewModel]).Result;
+            var r = host.PostRequest(Url, viewModels[SerializedViewModel].Value).Result;
             if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
         }
     }
