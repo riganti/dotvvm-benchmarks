@@ -15,9 +15,9 @@ namespace DotVVM.Benchmarks
 
         static void StopCollection(Process perfProcess)
         {
-            // if (!perfProcess.HasExited)
-            //     Process.Start("sudo", $"kill -s SIGINT {perfProcess.Id}");
-            if (!perfProcess.WaitForExit(2000))
+            if (!perfProcess.HasExited)
+                Process.Start("kill", $"-s SIGINT {perfProcess.Id}");
+            if (!perfProcess.WaitForExit(2_000))
                 throw new Exception("perf did not exit");
         }
 

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
@@ -23,7 +24,7 @@ namespace DotVVM.Benchmarks
         private ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
         private PerfHandler.CollectionHandler commandProcessor;
 
-        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false, bool allowDotnetMapgen = true)
+        public LinuxPerfBenchmarkDiagnoser(string tempPath = null, (string, string displayName)[] methodColumns = null, int maxParallelism = -1, bool enableRawPerfExport = false, bool enableStacksExport = false, bool allowDotnetMapgen = false)
         {
             this.tempPath = tempPath ?? Path.GetTempPath();
             this.methodColumns = methodColumns ?? new(string, string displayName)[0];
@@ -45,10 +46,6 @@ namespace DotVVM.Benchmarks
         public IEnumerable<string> Ids => new [] { nameof(LinuxPerfBenchmarkDiagnoser) };
 
         public IEnumerable<IExporter> Exporters => new IExporter[0];
-
-        public void AfterSetup(DiagnoserActionParameters parameters)
-        {
-        }
 
         public void BeforeAnythingElse(DiagnoserActionParameters parameters)
         {
@@ -130,9 +127,6 @@ namespace DotVVM.Benchmarks
             );
         }
 
-        public void ProcessResults(Benchmark benchmark, BenchmarkReport report)
-        {
-        }
 
         public IEnumerable<ValidationError> Validate(ValidationParameters validationParameters)
         {
@@ -141,7 +135,17 @@ namespace DotVVM.Benchmarks
 
         public RunMode GetRunMode(Benchmark benchmark) => RunMode.ExtraRun;
 
-        public void AfterGlobalSetup(DiagnoserActionParameters parameters)
+        public void Handle(HostSignal signal, DiagnoserActionParameters parameters)
+        {
+            if (signal == HostSignal.BeforeAnythingElse)
+                BeforeAnythingElse(parameters);
+            else if (signal == HostSignal.BeforeMainRun)
+                BeforeMainRun(parameters);
+            else if (signal == HostSignal.AfterAll)
+                BeforeGlobalCleanup(parameters);
+        }
+
+        public void ProcessResults(DiagnoserResults results)
         {
         }
     }

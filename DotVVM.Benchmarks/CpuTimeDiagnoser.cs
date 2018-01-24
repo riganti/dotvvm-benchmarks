@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
@@ -25,14 +26,6 @@ namespace DotVVM.Benchmarks
         public IEnumerable<string> Ids => new [] { nameof(CpuTimeDiagnoser) };
 
         public IEnumerable<IExporter> Exporters => Array.Empty<IExporter>();
-
-        public void AfterGlobalSetup(DiagnoserActionParameters parameters)
-        {
-        }
-
-        public void BeforeAnythingElse(DiagnoserActionParameters parameters)
-        {
-        }
 
         public void BeforeGlobalCleanup(DiagnoserActionParameters parameters)
         {
@@ -71,10 +64,6 @@ namespace DotVVM.Benchmarks
             startKernelCpuTime = parameters.Process.PrivilegedProcessorTime;
         }
 
-        public void DisplayResults(ILogger logger)
-        {
-        }
-
         public IColumnProvider GetColumnProvider()
         {
             return new SimpleColumnProvider(
@@ -93,6 +82,22 @@ namespace DotVVM.Benchmarks
         public IEnumerable<ValidationError> Validate(ValidationParameters validationParameters)
         {
             yield break;
+        }
+
+        public void Handle(HostSignal signal, DiagnoserActionParameters parameters)
+        {
+            if (signal == HostSignal.BeforeMainRun)
+                BeforeMainRun(parameters);
+            else if (signal == HostSignal.AfterAll)
+                BeforeGlobalCleanup(parameters);
+        }
+
+        public void ProcessResults(DiagnoserResults results)
+        {
+        }
+
+        public void DisplayResults(ILogger logger)
+        {
         }
     }
 
