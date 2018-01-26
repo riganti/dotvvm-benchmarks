@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,12 +47,13 @@ namespace DotVVM.Benchmarks
 
         private static int undefinedLocationCounter = 0;
 
-        public static DotvvmTestHost Create<TAppLauncher>(string currentPath = null)
+        public static (IWebHostBuilder, StrongBox<DotvvmConfiguration>) InitializeBuilder<TAppLauncher>(string currentPath = null)
             where TAppLauncher : IApplicationLauncher, new()
         {
             currentPath = currentPath ?? ("`undefinedLocation" + Interlocked.Increment(ref undefinedLocationCounter));
 
-            DotvvmConfiguration configuration = null;
+            var configuration = new StrongBox<DotvvmConfiguration>(null);
+            // DotvvmConfiguration configuration = null;
             var launcher = new TAppLauncher();
             var builder = new WebHostBuilder()
                 .ConfigureServices(s => {
@@ -60,12 +62,19 @@ namespace DotVVM.Benchmarks
                     launcher.ConfigServices(s, currentPath);
                 })
                 .Configure(a => {
-                    configuration = launcher.ConfigApp(a, currentPath); //.UseDotVVM<TDotvvmStartup>(applicationPath, useErrorPages: false);
+                    configuration.Value = launcher.ConfigApp(a, currentPath); //.UseDotVVM<TDotvvmStartup>(applicationPath, useErrorPages: false);
                 });
+            return (builder, configuration);
+        }
+
+        public static DotvvmTestHost Create<TAppLauncher>(string currentPath = null)
+            where TAppLauncher : IApplicationLauncher, new()
+        {
+            var (builder, configuration) = InitializeBuilder<TAppLauncher>(currentPath);
             var testServer = new TestServer(builder);
             var testClient = testServer.CreateClient();
 
-            return new DotvvmTestHost(testServer, configuration, testClient);
+            return new DotvvmTestHost(testServer, configuration.Value, testClient);
         }
 
         public async Task<DotvvmGetResponse> GetRequest(string url)
@@ -84,7 +93,7 @@ namespace DotVVM.Benchmarks
         {
             var fileName = $"file{Interlocked.Increment(ref fileCounter)}.dothtml";
             Configuration.RouteTable.Add(fileName, route, fileName);
-            Configuration.ServiceLocator.GetService<IMarkupFileLoader>().CastTo<VirtualMarkupFileLoader>().AddFile(fileName, contents);
+            Configuration.ServiceProvider.GetService<IMarkupFileLoader>().CastTo<VirtualMarkupFileLoader>().AddFile(fileName, contents);
         }
 
         private ConcurrentDictionary<string, string> fileCache = new ConcurrentDictionary<string, string>();

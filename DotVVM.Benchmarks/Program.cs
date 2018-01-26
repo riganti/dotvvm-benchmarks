@@ -57,6 +57,11 @@ namespace DotVVM.Benchmarks
     {
         static void Main(string[] args)
         {
+#if RUN_frontend_tests
+            FrontendBenchmarker.BenchmarkApplication<DotvvmSamplesLauncher>(new BrowserTimeOptions { }, ".");
+            return;
+#endif
+
             Environment.SetEnvironmentVariable("COMPlus_PerfMapEnabled", "1");
             if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
 

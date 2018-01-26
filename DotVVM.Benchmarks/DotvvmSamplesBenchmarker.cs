@@ -36,11 +36,16 @@ namespace DotVVM.Benchmarks
             return bb;
         }
 
-        public static DotvvmTestHost CreateSamplesTestHost()
+        public static string GetRootPath()
         {
             var currentPath = Directory.GetCurrentDirectory();
             while (!File.Exists(Path.Combine(currentPath, "DotVVM.Benchmarks.sln"))) currentPath = Path.GetDirectoryName(currentPath);
-            return DotvvmTestHost.Create<TAppLauncher>(currentPath);
+            return currentPath;
+        }
+
+        public static DotvvmTestHost CreateSamplesTestHost()
+        {
+            return DotvvmTestHost.Create<TAppLauncher>(GetRootPath());
         }
 
         public static IEnumerable<Benchmark> AllMvcBenchmarks(IConfig config, DotvvmTestHost testHost)
@@ -72,7 +77,7 @@ namespace DotVVM.Benchmarks
                 .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration));
         }
 
-        private static IEnumerable<string> GetTestRoutes(DotvvmConfiguration config) =>
+        public static IEnumerable<string> GetTestRoutes(DotvvmConfiguration config) =>
             config.RouteTable
             // TODO support parameters somehow
             .Where(r => r.ParameterNames.Count() == 0)
@@ -168,7 +173,8 @@ namespace DotVVM.Benchmarks
             Environment.SetEnvironmentVariable("DotvvmTests_ViewModelDirectory", viewModelDirectory);
             Directory.CreateDirectory(viewModelDirectory);
             var result = new ConcurrentBag<Benchmark>();
-            Parallel.ForEach(urls, url => {
+            Parallel.ForEach(urls, url =>
+            {
                 try
                 {
                     var html = host.GetRequest(url).Result.Contents;
@@ -208,8 +214,12 @@ namespace DotVVM.Benchmarks
         [Benchmark]
         public void TestDotvvmRequest()
         {
-            var r = host.GetRequest(Url).Result;
-            if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
+            try
+            {
+                var r = host.GetRequest(Url).Result;
+                if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
+            }
+            catch { }
         }
     }
 
@@ -218,7 +228,7 @@ namespace DotVVM.Benchmarks
 
     {
         Dictionary<string, Lazy<string>> viewModels;
-        public DotvvmPostbackBenchmarks(): this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost()) {}
+        public DotvvmPostbackBenchmarks() : this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost()) { }
         public DotvvmPostbackBenchmarks(DotvvmTestHost host)
         {
             viewModels = System.IO.Directory.EnumerateFiles(Environment.GetEnvironmentVariable("DotvvmTests_ViewModelDirectory"), "*.json").ToDictionary(Path.GetFileNameWithoutExtension, f => new Lazy<string>(() => File.ReadAllText(f)));
@@ -231,8 +241,12 @@ namespace DotVVM.Benchmarks
         [Benchmark]
         public void TestDotvvmRequest()
         {
-            var r = host.PostRequest(Url, viewModels[SerializedViewModel].Value).Result;
-            if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
+            try
+            {
+                var r = host.PostRequest(Url, viewModels[SerializedViewModel].Value).Result;
+                if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
+            }
+            catch { }
         }
     }
 }
