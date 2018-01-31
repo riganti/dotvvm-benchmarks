@@ -1,0 +1,209 @@
+﻿@viewModel DotVVM.Benchmarks.WebApp.ViewModels.RealWorldScenarioViewModel
+@import DotVVM.Benchmarks.WebApp.ViewModels
+
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>{{value: Title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
+    <nav class="navigation-on-top" Validation.Enabled="false">
+        <div class="navigation-body">
+            <ul class="menu nav-item-left">
+                <li class-selected="{value: CurrentRoute == 'GDPR'}" title="{resource: TitleResources.Gdpr}"><dot:RouteLink RouteName="Default">GDPR</dot:RouteLink></li>
+                <li class-selected="{value: CurrentRoute == 'Users'}" title="{resource: TitleResources.Users}"><dot:RouteLink RouteName="Default">Users</dot:RouteLink></li>
+                <li class-selected="{value: CurrentRoute == 'Activity'}" title="{resource: TitleResources.Activity}"><dot:RouteLink RouteName="Default">Activity</dot:RouteLink></li>
+                <li class-selected="{value: CurrentRoute == 'Help'}" title="{resource: TitleResources.Help}"><dot:RouteLink RouteName="Default">Help</dot:RouteLink></li>
+            </ul>
+
+            <div class="nav-item-right" DataContext="{value: Session}">
+                <dot:RouteLink class="nav-note" Visible="{value: Name != ''}" RouteName="RealWorldScenario"><i class="fa fa-user" aria-hidden="true"></i> {{value: Name}}</dot:RouteLink>
+                <dot:RouteLink class="nav-note" Visible="{value: OrganizationName != null}" RouteName="RealWorldScenario"><i class="fa fa-building" aria-hidden="true"></i> {{value: OrganizationName}}</dot:RouteLink>
+
+                <dot:Button ButtonTagName="Button" class="button button-secondary" Validation.Enabled="false"
+                            Click="{command: _root.ShowOrganizations()}"
+                            Text="Změnit organizaci"
+                            Visible="{value: HasMultipleOrganizations}" />
+                <dot:Button Click="{command: _root.SignOut()}" Text="Odhlásit se"
+                            data-ui="sing-out-link" class="button" />
+            </div>
+        </div>
+        <div class="nav-toggle-btn nav-item-left">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+
+
+
+    <header></header>
+    <main>
+        <div class="page-master">
+            <div class="alert alert-success message message-success" role="alert" Visible="{value: SuccessMessage != null}">
+                <dot:Button ButtonTagName="button" class="close" Click="{staticCommand: SuccessMessage = null}">
+                    <span aria-hidden="true">&times;</span>
+                </dot:Button>
+                <h4 class="alert-heading">Success!</h4>
+                <p InnerText="{value: SuccessMessage}"></p>
+            </div>
+
+            <div class="content">
+                <dot:Repeater DataSource="{value: PersonalData}" WrapperTagName="div">
+                    <div class="list-item">
+
+                        <h4 InnerText="{value: Name}" class="name"></h4>
+                        <div class="list-item-body">
+                            <div class="row" Visible="{resource: _root.ContainsCategory}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Zvláštní kategorie OÚ
+                                </div>
+                                <div class="col-6">
+                                    <dot:CheckBox Checked="{value: Category}" />
+                                </div>
+                            </div>
+                            <div class="row" Visible="{resource: _root.ContainsAutomaticDecision}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Automatizované rozhodování
+                                </div>
+                                <div class="col-6">
+                                    <dot:CheckBox Checked="{value: AutomaticDecision}" />
+                                </div>
+                            </div>
+                            <div class="row" Visible="{resource: _root.ContainsReceivers}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Příjemci
+                                </div>
+                                <div class="col-6">
+                                    <dot:Repeater DataSource="{value: Receivers}" RenderWrapperTag="false">
+                                        <dot:Literal Text="{value: Name + ' (' + RegistrationId + ')'}" />
+                                    </dot:Repeater>
+                                    <dot:Button Click="{command: _root.ShowReceiversModal(Id)}" class="button" ButtonTagName="button" style="float:right;">
+                                        <i class="fa fa-pencil" aria-hidden="true"></i>
+                                    </dot:Button>
+                                </div>
+                            </div>
+                            <div class="row" Visible="{resource: _root.ContainsLocationsAndPersons}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Místo uložení záznamu
+                                </div>
+                                <div class="col-6">
+                                    <dot:ComboBox DataSource="{value: _root.ResponsiblePersons}" SelectedValue="{value: CompetentPersons}" />
+                                </div>
+                            </div>
+                            <div class="row" Visible="{resource: _root.ContainsLocationsAndPersons}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Místo zálohy dat
+                                </div>
+                                <div class="col-6">
+                                    <dot:ComboBox DataSource="{value: _root.ResponsiblePersons}" SelectedValue="{value: CompetentPersons}" />
+                                </div>
+                            </div>
+                            <div class="row" Visible="{resource: _root.ContainsLocationsAndPersons}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Kompetentní osoby s přístupem
+                                </div>
+                                <div class="col-6">
+                                    <dot:ComboBox DataSource="{value: _root.ResponsiblePersons}" SelectedValue="{value: CompetentPersons}" />
+                                </div>
+                            </div>
+                            <div class="row" Visible="{resource: _root.ContainsLocationsAndPersons}">
+                                <div class="col-6">
+                                    <span class="own-tooltip note-tooltip">&nbsp;<i class="fa fa-info-circle" aria-hidden="true" /></span>
+                                    Odpovědnost za aktualizaci OU
+                                </div>
+                                <div class="col-6">
+                                    <dot:ComboBox DataSource="{value: _root.ResponsiblePersons}" SelectedValue="{value: CompetentPersons}" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </dot:Repeater>
+
+                <div class="gridview-cleaner" ID="PersonalDataGridView"
+                     Validation.Target="{value: _this}"
+                     Validation.Enabled="true"
+                     Validator.InvalidCssClass="has-error">
+                    <dot:GridView DataSource="{value: PersonalDataList}" ShowHeaderWhenNoData="true">
+
+                        <dot:GridViewTemplateColumn HeaderText="Personal data" Width="25%">
+                            <ContentTemplate>
+                                <dot:TextBox Text="{value: Name}" Validator.Value="{value: Name}" />
+                            </ContentTemplate>
+                        </dot:GridViewTemplateColumn>
+                        <dot:GridViewTemplateColumn HeaderText="Defined purpose" Width="28%" CssClass="text-to-left">
+                            <ContentTemplate>
+                                <dot:ComboBox SelectedValue="{value: PurposeId}" DataSource="{value: Purposes}" Validator.Value="{value: PurposeId}"
+                                              ItemValueBinding="{value: Id}" ItemTextBinding="{value: Name}" EmptyItemText="Choose purpose..." style="width:88%"
+                                              class="purpose-combobox" />
+
+                                <span class="own-tooltip note-tooltip" title="{value: Note}" Visible="{value: PurposeId != null}">
+                                    &nbsp;<i class="fa fa-info-circle" aria-hidden="true" />
+                                </span>
+                            </ContentTemplate>
+                        </dot:GridViewTemplateColumn>
+                        <dot:GridViewTemplateColumn HeaderText="Retention period" Width="8%" HeaderCssClass="smaller-text">
+                            <ContentTemplate>
+                                <dot:TextBox Text="{value: ShreddingPeriod}" style="width:3em" size="4" />
+                                <span class="own-tooltip note-tooltip">
+                                    &nbsp;<i class="fa fa-info-circle" aria-hidden="true" />
+                                </span>
+                            </ContentTemplate>
+                        </dot:GridViewTemplateColumn>
+                        <dot:GridViewTemplateColumn HeaderText="Právní důvod" Width="30%" CssClass="legal-reason-column">
+                            <ContentTemplate>
+                                <dot:Literal Text="{value: Result}" />
+                            </ContentTemplate>
+                        </dot:GridViewTemplateColumn>
+                        <dot:GridViewTemplateColumn Width="4%">
+                            <ContentTemplate>
+                                <dot:Button ButtonTagName="button" class="button button-danger" Click="{command: _root.Remove(_this)}" Validation.Enabled="false">
+                                    <PostBack.Handlers>
+                                        <dot:ConfirmPostBackHandler Message="Do you really want to remove the row?" />
+                                    </PostBack.Handlers>
+                                    <i class="fa fa-trash-o" aria-hidden="true"></i>
+                                </dot:Button>
+                            </ContentTemplate>
+                        </dot:GridViewTemplateColumn>
+                        <dot:GridViewTemplateColumn Width="5%" CssClass="outside">
+                            <ContentTemplate>
+                                <dot:Button ButtonTagName="button"
+                                            Click="{staticCommand: _root.PersonalDataList = RealWorldScenarioViewModel.InsertNewRow(Id, _root.PersonalDataList)}"
+                                            class="button button-primary"
+                                            title="Přidat řádek nad tento">
+                                    <i class="fa fa-angle-up" aria-hidden="true"></i>
+                                </dot:Button>
+                            </ContentTemplate>
+                        </dot:GridViewTemplateColumn>
+                    </dot:GridView>
+
+                    <dot:EmptyData RenderWrapperTag="false" DataSource="{value: PersonalDataList}">
+                        <p class="empty-data-text">Nemáte přidané žádné záznamy obsahující osobní údaje</p>
+                    </dot:EmptyData>
+
+
+                    <dot:Literal Text="{value: ErrorMessage}" Type="Danger" class="error-msg" />
+                    <dot:ValidationSummary IncludeErrorsFromChildren="true" class="error-msg" />
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer></footer>
+
+    <div Visible="{value: IsOrganizationModalDisplayed}">
+        <h3>Organization Modal</h3>
+        <dot:Button Click="{staticCommand: IsOrganizationModalDisplayed = true}" class="button button-primary" data-dismiss="modal">Close Modal</dot:Button>
+    </div>
+</body>
+</html>
