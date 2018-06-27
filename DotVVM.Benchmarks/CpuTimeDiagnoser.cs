@@ -11,6 +11,7 @@ using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Validators;
+using BenchmarkDotNet.Analysers;
 
 namespace DotVVM.Benchmarks
 {
@@ -99,6 +100,8 @@ namespace DotVVM.Benchmarks
         public void DisplayResults(ILogger logger)
         {
         }
+
+        public IEnumerable<IAnalyser> Analysers => Array.Empty<IAnalyser>();
     }
 
     public class GenericColumn : IColumn

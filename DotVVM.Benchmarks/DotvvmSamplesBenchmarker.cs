@@ -53,7 +53,7 @@ namespace DotVVM.Benchmarks
             IEnumerable<Benchmark> createMvcBenchmarks(Benchmark b)
             {
                 var urls = new[] { "/Home/Index" };
-                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { });
+                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
                 foreach (var url in urls)
                 {
                     new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.TestDotvvmRequest();
@@ -87,7 +87,7 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<Benchmark> CreateBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { });
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
             foreach (var url in urls)
             {
                 try
@@ -166,8 +166,8 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<Benchmark> CreatePostbackBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { });
-            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { });
+            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
+            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { }, false);
             var viewModelDirectory = Environment.GetEnvironmentVariable("DotvvmTests_ViewModelDirectory") ??
                 Path.GetFullPath("testViewModels");
             Environment.SetEnvironmentVariable("DotvvmTests_ViewModelDirectory", viewModelDirectory);

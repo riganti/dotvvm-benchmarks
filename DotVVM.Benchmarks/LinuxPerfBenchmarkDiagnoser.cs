@@ -15,6 +15,7 @@ using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Validators;
 using DotVVM.Framework.Utils;
+using BenchmarkDotNet.Analysers;
 
 namespace DotVVM.Benchmarks
 {
@@ -148,6 +149,8 @@ namespace DotVVM.Benchmarks
         public void ProcessResults(DiagnoserResults results)
         {
         }
+
+        public IEnumerable<IAnalyser> Analysers => Array.Empty<IAnalyser>();
     }
 
     public class MethodTimeFractionColumn : IColumn
