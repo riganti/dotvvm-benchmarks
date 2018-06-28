@@ -18,6 +18,9 @@ using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using BenchmarkDotNet.Characteristics;
+using BenchmarkDotNet.Toolchains;
+using BenchmarkDotNet.Toolchains.Results;
+using BenchmarkDotNet.Loggers;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -27,6 +30,7 @@ using BenchmarkDotNet.Characteristics;
 
 namespace DotVVM.Benchmarks
 {
+
     public class DotvvmSamplesLauncher : IApplicationLauncher
     {
         public DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath)
@@ -50,6 +54,25 @@ namespace DotVVM.Benchmarks
         public void ConfigServices(IServiceCollection services, string currentPath)
         {
             services.AddDotVVM();
+        }
+    }
+
+    public class SynchonousBuilder: IBuilder
+    {
+        private IBuilder builder;
+        private object syncLock = new object();
+
+        public SynchonousBuilder(IBuilder builder)
+        {
+            this.builder = builder;
+        }
+
+        public BuildResult Build(GenerateResult generateResult, ILogger logger, Benchmark benchmark, IResolver resolver)
+        {
+            lock(syncLock)
+            {
+                return builder.Build(generateResult, logger, benchmark, resolver);
+            }
         }
     }
 
@@ -122,13 +145,14 @@ namespace DotVVM.Benchmarks
             ));
             Console.WriteLine("CPU Sampling [ON]");
 #endif
-
             return conf;
         }
 
         private static Job WithRunCount(Job job)
         {
             job = new Job(job);
+            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.Current.Value;
+            job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), toolchain.Executor);
             //job.Run.WarmupCount = 1;
             return job;
         }
