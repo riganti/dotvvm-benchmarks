@@ -154,7 +154,7 @@ namespace DotVVM.Benchmarks
             var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.Current.Value;
             job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), toolchain.Executor);
             //job.Run.WarmupCount = 1;
-            return job;
+            return job.With(new MsBuildArgument[] { new MsBuildArgument("--disable-parallel") });
         }
     }
 }
