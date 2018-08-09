@@ -69,15 +69,15 @@ namespace DotVVM.Benchmarks
             {
                 var data = new Dictionary<string, object> {
                     // We don't need Benchmark.ShortInfo, that info is available via Benchmark.Parameters below
-                    { "DisplayInfo", r.Benchmark.DisplayInfo },
-                    { "Namespace", r.Benchmark.Target.Type.Namespace },
-                    { "Type", r.Benchmark.Target.Type.Name },
-                    { "Method", r.Benchmark.Target.Method.Name },
-                    { "MethodTitle", r.Benchmark.Target.MethodDisplayInfo },
-                    { "Parameters", r.Benchmark.Parameters.Items.ToDictionary(p => p.Name, p => p.Value) },
+                    { "DisplayInfo", r.BenchmarkCase.DisplayInfo },
+                    { "Namespace", r.BenchmarkCase.Descriptor.Type.Namespace },
+                    { "Type", r.BenchmarkCase.Descriptor.Type.Name },
+                    { "Method", r.BenchmarkCase.Descriptor.WorkloadMethod.Name },
+                    { "MethodTitle", r.BenchmarkCase.Descriptor.WorkloadMethodDisplayInfo },
+                    { "Parameters", r.BenchmarkCase.Parameters.Items.ToDictionary(p => p.Name, p => p.Value) },
                     // { "Properties", r.Benchmark.Job.ToSet().ToDictionary(p => p.Name, p => p.Value) }, // TODO
                     { "Statistics", r.ResultStatistics },
-                    { "Columns", columns.Where(col => !col.IsDefault(summary, r.Benchmark)).ToDictionary(col => col.Id, col => col.GetValue(summary, r.Benchmark, summaryStyle)) }
+                    { "Columns", columns.Where(col => !col.IsDefault(summary, r.BenchmarkCase)).ToDictionary(col => col.Id, col => col.GetValue(summary, r.BenchmarkCase, summaryStyle)) }
                 };
 
                 // We show MemoryDiagnoser's results only if it is being used

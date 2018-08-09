@@ -67,11 +67,11 @@ namespace DotVVM.Benchmarks
             this.builder = builder;
         }
 
-        public BuildResult Build(GenerateResult generateResult, ILogger logger, Benchmark benchmark, IResolver resolver)
+        public BuildResult Build(GenerateResult generateResult, BuildPartition buildPartition, ILogger logger)
         {
             lock(syncLock)
             {
-                return builder.Build(generateResult, logger, benchmark, resolver);
+                return builder.Build(generateResult, buildPartition, logger);
             }
         }
     }
@@ -90,10 +90,10 @@ namespace DotVVM.Benchmarks
 
             var conf = CreateTestConfiguration();
 
-            var b = new List<Benchmark>();
+            var b = new List<BenchmarkRunInfo>();
 #if RUN_synth_tests
-            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf).Benchmarks);
-            b.AddRange(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf).Benchmarks);
+            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
+            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
 #endif
 #if RUN_dotvvm_samples
             b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
@@ -105,7 +105,6 @@ namespace DotVVM.Benchmarks
             b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
 #endif
 
-            b.Sort();
             BenchmarkRunner.Run(
                 //b.GroupBy(t => t.Parameters.Items.Any(p => p.Name == nameof(DotvvmPostbackBenchmarks<DotvvmSamplesLauncher>.SerializedViewModel))).SelectMany(g => g.Take(27).Skip(25))
                 b

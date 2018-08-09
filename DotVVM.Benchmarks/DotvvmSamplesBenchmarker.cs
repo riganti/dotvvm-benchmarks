@@ -20,20 +20,20 @@ namespace DotVVM.Benchmarks
     public class DotvvmSamplesBenchmarker<TAppLauncher>
             where TAppLauncher : IApplicationLauncher, new()
     {
-        public static IEnumerable<Benchmark> BenchmarkSamples(IConfig config, bool getRequests = true, bool postRequests = true)
+        public static IEnumerable<BenchmarkRunInfo> BenchmarkSamples(IConfig config, bool getRequests = true, bool postRequests = true)
         {
             var host = CreateSamplesTestHost();
-            var getBenchmarks = getRequests ? AllGetBenchmarks(config, host).ToArray() : new Benchmark[0];
-            var postBenchmarks = postRequests ? AllPostBenchmarks(config, host).ToArray() : new Benchmark[0];
+            var getBenchmarks = getRequests ? new [] { AllGetBenchmarks(config, host) } : new BenchmarkRunInfo[0];
+            var postBenchmarks = postRequests ? new [] { AllPostBenchmarks(config, host) } : new BenchmarkRunInfo[0];
 
             return getBenchmarks.Concat(postBenchmarks).ToArray();
         }
 
-        public static IEnumerable<Benchmark> BenchmarkMvcSamples(IConfig config, bool getRequests = true, bool postRequests = true)
+        public static IEnumerable<BenchmarkRunInfo> BenchmarkMvcSamples(IConfig config, bool getRequests = true, bool postRequests = true)
         {
             var host = CreateSamplesTestHost();
-            var bb = AllMvcBenchmarks(config, host).ToArray();
-            return bb;
+            var bb = AllMvcBenchmarks(config, host);
+            yield return bb;
         }
 
         public static string GetRootPath()
@@ -48,33 +48,39 @@ namespace DotVVM.Benchmarks
             return DotvvmTestHost.Create<TAppLauncher>(GetRootPath());
         }
 
-        public static IEnumerable<Benchmark> AllMvcBenchmarks(IConfig config, DotvvmTestHost testHost)
+        public static BenchmarkRunInfo AllMvcBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
-            IEnumerable<Benchmark> createMvcBenchmarks(Benchmark b)
+            IEnumerable<BenchmarkCase> createMvcBenchmarks(BenchmarkCase b)
             {
                 var urls = new[] { "/Home/Index" };
                 var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
                 foreach (var url in urls)
                 {
                     new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.TestDotvvmRequest();
-                    yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
+                    yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
                 }
             }
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config).Benchmarks
-                .SelectMany(createMvcBenchmarks);
+            var runInfo = BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config);
+            var cases = runInfo.BenchmarksCases.SelectMany(createMvcBenchmarks).ToArray();
+            return new BenchmarkRunInfo(cases, runInfo.Type, runInfo.Config);
         }
 
-        private static IEnumerable<Benchmark> AllGetBenchmarks(IConfig config, DotvvmTestHost testHost)
+        private static BenchmarkRunInfo AllGetBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config).Benchmarks
-                .SelectMany(b => CreateBenchmarks(b, testHost, testHost.Configuration));
+            var runInfo = BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config);
+            var cases = runInfo.BenchmarksCases
+                .SelectMany(b => CreateBenchmarks(b, testHost, testHost.Configuration)).ToArray();
+            return new BenchmarkRunInfo(cases, runInfo.Type, runInfo.Config);
         }
 
-        private static IEnumerable<Benchmark> AllPostBenchmarks(IConfig config, DotvvmTestHost testHost)
+        private static BenchmarkRunInfo AllPostBenchmarks(IConfig config, DotvvmTestHost testHost)
         {
             Directory.CreateDirectory("testViewModels");
-            return BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TAppLauncher>), config).Benchmarks
-                .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration));
+            var runInfo = BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmPostbackBenchmarks<TAppLauncher>), config);
+            var cases = runInfo.BenchmarksCases
+                .SelectMany(b => CreatePostbackBenchmarks(b, testHost, testHost.Configuration))
+                .ToArray();
+            return new BenchmarkRunInfo(cases, runInfo.Type, runInfo.Config);
         }
 
         public static IEnumerable<string> GetTestRoutes(DotvvmConfiguration config) =>
@@ -84,7 +90,7 @@ namespace DotVVM.Benchmarks
             .Where(r => !r.RouteName.Contains("Auth") && !r.RouteName.Contains("SPARedirect") && !r.RouteName.Contains("Error")) // Auth samples cause problems, because thei viewModels are not loaded
             .Select(r => r.BuildUrl().TrimStart('~'));
 
-        public static IEnumerable<Benchmark> CreateBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
+        public static IEnumerable<BenchmarkCase> CreateBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
             var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
@@ -95,7 +101,7 @@ namespace DotVVM.Benchmarks
                     new DotvvmGetBenchmarks<TAppLauncher>(host) { Url = url }.TestDotvvmRequest();
                 }
                 catch { continue; }
-                yield return new Benchmark(b.Target, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
+                yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
             }
         }
 
@@ -163,7 +169,7 @@ namespace DotVVM.Benchmarks
             ).ToString();
         }
 
-        public static IEnumerable<Benchmark> CreatePostbackBenchmarks(Benchmark b, DotvvmTestHost host, DotvvmConfiguration config)
+        public static IEnumerable<BenchmarkCase> CreatePostbackBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
             var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
@@ -172,7 +178,7 @@ namespace DotVVM.Benchmarks
                 Path.GetFullPath("testViewModels");
             Environment.SetEnvironmentVariable("DotvvmTests_ViewModelDirectory", viewModelDirectory);
             Directory.CreateDirectory(viewModelDirectory);
-            var result = new ConcurrentBag<Benchmark>();
+            var result = new ConcurrentBag<BenchmarkCase>();
             Parallel.ForEach(urls, url =>
             {
                 try
@@ -187,7 +193,7 @@ namespace DotVVM.Benchmarks
                             new DotvvmPostbackBenchmarks<TAppLauncher>(host) { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
                         }
                         catch { continue; }
-                        result.Add(new Benchmark(b.Target, b.Job, new ParameterInstances(new[] {
+                        result.Add(BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] {
                             new ParameterInstance(urlDefinition, url),
                             new ParameterInstance(vmDefiniton, fname)
                         })));

@@ -31,18 +31,18 @@ namespace DotVVM.Benchmarks
             this.methodColumns = methodColumns ?? new(string, string displayName)[0];
             this.allowDotnetMapgen = allowDotnetMapgen;
             this.maxParallelism = maxParallelism < 0 ? Environment.ProcessorCount : maxParallelism;
-            this.rawExportFile = enableRawPerfExport ? new Dictionary<Benchmark, string>() : null;
-            this.stacksExportFile = enableStacksExport ? new Dictionary<Benchmark, string>() : null;
+            this.rawExportFile = enableRawPerfExport ? new Dictionary<BenchmarkCase, string>() : null;
+            this.stacksExportFile = enableStacksExport ? new Dictionary<BenchmarkCase, string>() : null;
         }
 
-        private readonly Dictionary<Benchmark, string> rawExportFile;
-        private readonly Dictionary<Benchmark, string> stacksExportFile;
-        private ConcurrentDictionary<Benchmark, float[]> methodPercentiles = new ConcurrentDictionary<Benchmark, float[]>();
+        private readonly Dictionary<BenchmarkCase, string> rawExportFile;
+        private readonly Dictionary<BenchmarkCase, string> stacksExportFile;
+        private ConcurrentDictionary<BenchmarkCase, float[]> methodPercentiles = new ConcurrentDictionary<BenchmarkCase, float[]>();
 
         private (string key, string displayName)[] methodColumns;
         private readonly bool allowDotnetMapgen;
         private int maxParallelism;
-        private Benchmark currentBenchmark;
+        private BenchmarkCase currentBenchmark;
 
         public IEnumerable<string> Ids => new [] { nameof(LinuxPerfBenchmarkDiagnoser) };
 
@@ -53,7 +53,7 @@ namespace DotVVM.Benchmarks
             Environment.SetEnvironmentVariable("COMPlus_PerfMapEnabled", "1");
         }
 
-        private void ProcessTrace((string[] stack, int number)[] stacks, Benchmark benchmark)
+        private void ProcessTrace((string[] stack, int number)[] stacks, BenchmarkCase benchmark)
         {
             Console.WriteLine($"Processing Trace ({stacks.Length} unique stacks)");
             var times = methodColumns.Select(t => (float)stacks.Where(s => s.stack.Any(m => m == t.key || m.Contains(t.key))).Select(s => s.number).Sum()).ToArray();
@@ -65,7 +65,7 @@ namespace DotVVM.Benchmarks
         public void BeforeGlobalCleanup(DiagnoserActionParameters parameters)
         {
             var ll = commandProcessor.StopAndLazyMerge();
-            var benchmark = parameters.Benchmark;
+            var benchmark = parameters.BenchmarkCase;
             Debug.Assert(benchmark == currentBenchmark);
             actionQueue.Enqueue(() => {
                 var stacks = ll();
@@ -87,13 +87,13 @@ namespace DotVVM.Benchmarks
             new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineInfo("Starting sampling profiler.");
             if (commandProcessor != null) throw new Exception("Collection is already running.");
 
-            var folderInfo = parameters.Benchmark.Parameters?.FolderInfo;
-            if (string.IsNullOrEmpty(folderInfo)) folderInfo = parameters.Benchmark.FolderInfo;
+            var folderInfo = parameters.BenchmarkCase.Parameters?.FolderInfo;
+            if (string.IsNullOrEmpty(folderInfo)) folderInfo = parameters.BenchmarkCase.FolderInfo;
             folderInfo = new string(folderInfo.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
-            string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.Benchmark.Parameters?.FolderInfo ?? parameters.Benchmark.FolderInfo).Replace("/", "_") + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".perfdata");
+            string path = Path.Combine(tempPath, "benchmarkLogs", (parameters.BenchmarkCase.Parameters?.FolderInfo ?? parameters.BenchmarkCase.FolderInfo).Replace("/", "_") + "_" + Guid.NewGuid().ToString().Replace("-", "_") + ".perfdata");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
-            rawExportFile?.Add(parameters.Benchmark, path);
-            stacksExportFile?.Add(parameters.Benchmark, Path.ChangeExtension(path, "stacks.gz"));
+            rawExportFile?.Add(parameters.BenchmarkCase, path);
+            stacksExportFile?.Add(parameters.BenchmarkCase, Path.ChangeExtension(path, "stacks.gz"));
             try
             {
                 if (this.allowDotnetMapgen)
@@ -102,12 +102,12 @@ namespace DotVVM.Benchmarks
             catch { }
             try
             {
-                commandProcessor = PerfHandler.StartCollection(path, parameters.Process, this.rawExportFile == null, stacksExportFile?.GetValue(parameters.Benchmark), this.allowDotnetMapgen);
-                currentBenchmark = parameters.Benchmark;
+                commandProcessor = PerfHandler.StartCollection(path, parameters.Process, this.rawExportFile == null, stacksExportFile?.GetValue(parameters.BenchmarkCase), this.allowDotnetMapgen);
+                currentBenchmark = parameters.BenchmarkCase;
             }
             catch (Exception ex)
             {
-                rawExportFile?.Remove(parameters.Benchmark);
+                rawExportFile?.Remove(parameters.BenchmarkCase);
                 new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineError("Could not start trace: " + ex);
             }
         }
@@ -134,13 +134,13 @@ namespace DotVVM.Benchmarks
             yield break;
         }
 
-        public RunMode GetRunMode(Benchmark benchmark) => RunMode.ExtraRun;
+        public RunMode GetRunMode(BenchmarkCase benchmark) => RunMode.ExtraRun;
 
         public void Handle(HostSignal signal, DiagnoserActionParameters parameters)
         {
             if (signal == HostSignal.BeforeAnythingElse)
                 BeforeAnythingElse(parameters);
-            else if (signal == HostSignal.BeforeMainRun)
+            else if (signal == HostSignal.BeforeActualRun)
                 BeforeMainRun(parameters);
             else if (signal == HostSignal.AfterAll)
                 BeforeGlobalCleanup(parameters);
@@ -156,10 +156,10 @@ namespace DotVVM.Benchmarks
     public class MethodTimeFractionColumn : IColumn
     {
         private readonly string displayName;
-        private readonly IDictionary<Benchmark, float[]> dict;
+        private readonly IDictionary<BenchmarkCase, float[]> dict;
         private readonly int mIndex;
 
-        public MethodTimeFractionColumn(string displayName, IDictionary<Benchmark, float[]> dict, int mIndex)
+        public MethodTimeFractionColumn(string displayName, IDictionary<BenchmarkCase, float[]> dict, int mIndex)
         {
             this.displayName = displayName;
             this.dict = dict;
@@ -179,23 +179,23 @@ namespace DotVVM.Benchmarks
         public UnitType UnitType => UnitType.Dimensionless;
         public string Legend => "% of inclusive CPU stacks spent in the method";
 
-        public string GetValue(Summary summary, Benchmark benchmark) =>
+        public string GetValue(Summary summary, BenchmarkCase benchmark) =>
             GetValue(summary, benchmark, new SummaryStyle { PrintUnitsInContent = true });
 
-        public string GetValue(Summary summary, Benchmark benchmark, ISummaryStyle style) =>
+        public string GetValue(Summary summary, BenchmarkCase benchmark, ISummaryStyle style) =>
             dict.TryGetValue(benchmark, out var times) ?
             $"{times[mIndex] * 100f}{( style.PrintUnitsInContent ? "%" : "")}" :
             "-";
 
         public bool IsAvailable(Summary summary) => true;
 
-        public bool IsDefault(Summary summary, Benchmark benchmark) => !dict.ContainsKey(benchmark);
+        public bool IsDefault(Summary summary, BenchmarkCase benchmark) => !dict.ContainsKey(benchmark);
     }
     public class FileNameColumn : IColumn
     {
-        private readonly Dictionary<Benchmark, string> fileName;
+        private readonly Dictionary<BenchmarkCase, string> fileName;
 
-        public FileNameColumn(string colName, string id, Dictionary<Benchmark, string> fileName)
+        public FileNameColumn(string colName, string id, Dictionary<BenchmarkCase, string> fileName)
         {
             Id = id;
             ColumnName = colName;
@@ -215,7 +215,7 @@ namespace DotVVM.Benchmarks
         public UnitType UnitType => UnitType.Dimensionless;
         public string Legend => "File Name";
 
-        public string GetValue(Summary summary, Benchmark benchmark)
+        public string GetValue(Summary summary, BenchmarkCase benchmark)
         {
             if (fileName.TryGetValue(benchmark, out var val) && File.Exists(val))
             {
@@ -224,7 +224,7 @@ namespace DotVVM.Benchmarks
             return "-";
         }
 
-        public string GetValue(Summary summary, Benchmark benchmark, ISummaryStyle style)
+        public string GetValue(Summary summary, BenchmarkCase benchmark, ISummaryStyle style)
         {
             return GetValue(summary, benchmark);
         }
@@ -234,7 +234,7 @@ namespace DotVVM.Benchmarks
             return true;
         }
 
-        public bool IsDefault(Summary summary, Benchmark benchmark)
+        public bool IsDefault(Summary summary, BenchmarkCase benchmark)
         {
             return false;
         }

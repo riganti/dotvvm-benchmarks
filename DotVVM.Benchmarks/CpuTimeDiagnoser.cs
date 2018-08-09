@@ -37,9 +37,9 @@ namespace DotVVM.Benchmarks
                 var userTime = parameters.Process.UserProcessorTime - startUserCpuTime;
                 var cpuTime = parameters.Process.TotalProcessorTime - startCpuTime;
 
-                this.TotalTimeColum.AddValue(parameters.Benchmark, ((cpuTime / totalTime) * 100).ToString(), "%");
-                this.KernelTimeColum.AddValue(parameters.Benchmark, ((kernelTime / totalTime) * 100).ToString(), "%");
-                this.UserTimeColum.AddValue(parameters.Benchmark, ((userTime / totalTime) * 100).ToString(), "%");
+                this.TotalTimeColum.AddValue(parameters.BenchmarkCase, ((cpuTime / totalTime) * 100).ToString(), "%");
+                this.KernelTimeColum.AddValue(parameters.BenchmarkCase, ((kernelTime / totalTime) * 100).ToString(), "%");
+                this.UserTimeColum.AddValue(parameters.BenchmarkCase, ((userTime / totalTime) * 100).ToString(), "%");
             }
             catch(Exception ex)
             {
@@ -74,9 +74,9 @@ namespace DotVVM.Benchmarks
             );
         }
 
-        public RunMode GetRunMode(Benchmark benchmark) => RunMode.ExtraRun;
+        public RunMode GetRunMode(BenchmarkCase benchmark) => RunMode.ExtraRun;
 
-        public void ProcessResults(Benchmark benchmark, BenchmarkReport report)
+        public void ProcessResults(BenchmarkCase benchmark, BenchmarkReport report)
         {
         }
 
@@ -87,7 +87,7 @@ namespace DotVVM.Benchmarks
 
         public void Handle(HostSignal signal, DiagnoserActionParameters parameters)
         {
-            if (signal == HostSignal.BeforeMainRun)
+            if (signal == HostSignal.BeforeActualRun)
                 BeforeMainRun(parameters);
             else if (signal == HostSignal.AfterAll)
                 BeforeGlobalCleanup(parameters);
@@ -106,7 +106,7 @@ namespace DotVVM.Benchmarks
 
     public class GenericColumn : IColumn
     {
-        readonly Dictionary<Benchmark, Func<ISummaryStyle, string>> values = new Dictionary<Benchmark, Func<ISummaryStyle, string>>();
+        readonly Dictionary<BenchmarkCase, Func<ISummaryStyle, string>> values = new Dictionary<BenchmarkCase, Func<ISummaryStyle, string>>();
         public GenericColumn(string id, string columnName, bool isNumeric, UnitType unitType, string legend)
         {
             this.Id = id;
@@ -131,18 +131,18 @@ namespace DotVVM.Benchmarks
 
         public string Legend { get; }
 
-        public void AddValue(Benchmark benchmark, Func<ISummaryStyle, string> fn) => values.Add(benchmark, fn);
+        public void AddValue(BenchmarkCase benchmark, Func<ISummaryStyle, string> fn) => values.Add(benchmark, fn);
 
-        public void AddValue(Benchmark benchmark, string val, string unit) => AddValue(benchmark, s => s.PrintUnitsInContent ? val + unit : val);
+        public void AddValue(BenchmarkCase benchmark, string val, string unit) => AddValue(benchmark, s => s.PrintUnitsInContent ? val + unit : val);
 
-        public string GetValue(Summary summary, Benchmark benchmark) => GetValue(summary, benchmark, new SummaryStyle { PrintUnitsInContent = true, PrintUnitsInHeader = true });
+        public string GetValue(Summary summary, BenchmarkCase benchmark) => GetValue(summary, benchmark, new SummaryStyle { PrintUnitsInContent = true, PrintUnitsInHeader = true });
 
-        public string GetValue(Summary summary, Benchmark benchmark, ISummaryStyle style) =>
+        public string GetValue(Summary summary, BenchmarkCase benchmark, ISummaryStyle style) =>
             values.TryGetValue(benchmark, out var fn) ? fn(style) :
             "-";
 
         public bool IsAvailable(Summary summary) => values.Count > 0;
 
-        public bool IsDefault(Summary summary, Benchmark benchmark) => !values.ContainsKey(benchmark);
+        public bool IsDefault(Summary summary, BenchmarkCase benchmark) => !values.ContainsKey(benchmark);
     }
 }
