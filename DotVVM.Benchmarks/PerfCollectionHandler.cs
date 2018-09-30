@@ -111,7 +111,8 @@ namespace DotVVM.Benchmarks
                 var proc = Process.Start(args);
                 using (var input = proc.StandardInput)
                 {
-                    input.WriteLine($"perf script -i {file} | FlameGraph/stackcollapse-perf.pl --all");
+                    if (file.Contains("'")) throw new Exception("File contains `'`");
+                    input.WriteLine($"perf script -i '{file}' | FlameGraph/stackcollapse-perf.pl --all");
                 }
                 var output = proc.StandardOutput;
                 string line = null;
