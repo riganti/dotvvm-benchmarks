@@ -208,7 +208,9 @@ namespace DotVVM.Benchmarks
              where T : IApplicationLauncher, new()
 
     {
-        public DotvvmGetBenchmarks() : this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost()) { }
+        public DotvvmGetBenchmarks() : this(DotvvmSamplesBenchmarker<T>.CreateSamplesTestHost())
+        {
+        }
         public DotvvmGetBenchmarks(DotvvmTestHost host)
         {
             this.host = host;
@@ -217,12 +219,18 @@ namespace DotVVM.Benchmarks
 
         public string Url { get; set; }
 
+        [GlobalSetup]
+        public void Setup()
+        {
+            TestDotvvmRequest();
+        }
+
         [Benchmark]
         public void TestDotvvmRequest()
         {
             try
             {
-                var r = host.GetRequest(Url).Result;
+                var r = SynchronousMemoryDiagnoser.RunTask(() => host.GetRequest(Url));
                 if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
             }
             catch { }

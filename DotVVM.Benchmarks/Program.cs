@@ -21,6 +21,8 @@ using BenchmarkDotNet.Characteristics;
 using BenchmarkDotNet.Toolchains;
 using BenchmarkDotNet.Toolchains.Results;
 using BenchmarkDotNet.Loggers;
+using BenchmarkDotNet.Horology;
+using BenchmarkDotNet.Toolchains.Parameters;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -76,6 +78,23 @@ namespace DotVVM.Benchmarks
         }
     }
 
+    public class InterceptingExecutor: IExecutor
+    {
+        public static ExecuteResult LastExecResult { get; private set; }
+
+        private readonly IExecutor executor;
+
+        public InterceptingExecutor(IExecutor executor)
+        {
+            this.executor = executor;
+        }
+
+        public ExecuteResult Execute(ExecuteParameters executeParameters)
+        {
+            return LastExecResult = this.executor.Execute(executeParameters);
+        }
+    }
+
     class Program
     {
         static void Main(string[] args)
@@ -95,11 +114,13 @@ namespace DotVVM.Benchmarks
             b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
             b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
 #endif
+            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.SingleControlTests), conf));
 #if RUN_dotvvm_samples
             b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
 #endif
 #if RUN_perf_samples
-            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: false));
+            Console.WriteLine("Running with perf samples");
 #endif
 #if RUN_aspnet_mvc
             b.AddRange(DotvvmSamplesBenchmarker<MvcWebApp.MvcAppLauncher>.BenchmarkMvcSamples(conf));
@@ -132,17 +153,19 @@ namespace DotVVM.Benchmarks
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Median);
             conf.Add(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
 
-            conf.Add(BenchmarkDotNet.Diagnosers.MemoryDiagnoser.Default);
             conf.Add(new CpuTimeDiagnoser());
 #if DIAGNOSER_cpu_sampling
-            conf.Add(new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
+            var benchmarkDiagnoser = new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
 #if DEBUG || EXPORT_rawperf
                 enableRawPerfExport: true
 #else
                 enableRawPerfExport: false
 #endif
-            ));
+            );
+            conf.Add(benchmarkDiagnoser);
+            benchmarkDiagnoser.AddColumnsToConfig(conf);
             Console.WriteLine("CPU Sampling [ON]");
+            conf.Add(SynchronousMemoryDiagnoser.Default);
 #endif
             return conf;
         }
@@ -151,9 +174,19 @@ namespace DotVVM.Benchmarks
         {
             job = new Job(job);
             var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.Current.Value;
-            job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), toolchain.Executor);
+            job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), new InterceptingExecutor(toolchain.Executor));
+            // job = job.WithMinIterationTime(BenchmarkDotNet.Horology.TimeInterval.FromMilliseconds(200));
             //job.Run.WarmupCount = 1;
-            return job.With(new MsBuildArgument[] { new MsBuildArgument("--disable-parallel") });
+            return job
+                .With(new MsBuildArgument[] { new MsBuildArgument("--disable-parallel") })
+                .WithMaxRelativeError(0.008)
+#if DEBUG_RUN
+                .WithMaxIterationCount(8).WithMinIterationCount(6).WithWarmupCount(1)
+#else
+                .WithMaxIterationCount(1000).WithMinIterationCount(64)
+#endif
+
+                ;
         }
     }
 }
