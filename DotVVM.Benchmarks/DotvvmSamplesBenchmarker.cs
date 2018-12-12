@@ -20,6 +20,72 @@ namespace DotVVM.Benchmarks
     public class DotvvmSamplesBenchmarker<TAppLauncher>
             where TAppLauncher : IApplicationLauncher, new()
     {
+        static HashSet<string> urlBlacklist = new HashSet<string> {
+            // long sleeps & nothing interesting
+            "DotvvmSamplesLauncher:FeatureSamples/BindingPageInfo/BindingPageInfo",
+            "DotvvmSamplesLauncher:ControlSamples/UpdateProgress/UpdateProgress",
+            "DotvvmSamplesLauncher:ControlSamples/UpdateProgress/UpdateProgressDelay",
+            "DotvvmSamplesLauncher:FeatureSamples/ViewModelNesting/NestedViewModel",
+
+            // almost empty redundant pages
+            "DotvvmSamplesLauncher:ControlSamples/RouteLink/TestRoute",
+            "DotvvmSamplesLauncher:ControlSamples/RouteLink/RouteLinkEnabledFalse",
+            "DotvvmSamplesLauncher:ControlSamples/RouteLink/RouteLinkEnabled",
+            "DotvvmSamplesLauncher:ControlSamples/Literal/Literal_ArrayLength",
+            "DotvvmSamplesLauncher:ControlSamples/Literal/Literal_CollectionLength",
+            "DotvvmSamplesLauncher:ControlSamples/ComboBox/ComboBoxTitle",
+            "DotvvmSamplesLauncher:ControlSamples/ComboBox/ComboBoxDelaySync3",
+            "DotvvmSamplesLauncher:ControlSamples/ComboBox/ComboBoxDelaySync2",
+            "DotvvmSamplesLauncher:ControlSamples/ComboBox/ComboBoxDelaySync",
+            "DotvvmSamplesLauncher:ControlSamples/Button/InputTypeButton_TextContentInside",
+            "DotvvmSamplesLauncher:ControlSamples/Button/Button",
+            "DotvvmSamplesLauncher:ControlSamples/Button/Button",
+            "DotvvmSamplesLauncher:ComplexSamples/NamespaceCollision/NamespaceCollision",
+            "DotvvmSamplesLauncher:FeatureSamples/Api/AzureFunctionsApi",
+            "DotvvmSamplesLauncher:FeatureSamples/Api/AzureFunctionsApiTable",
+            "DotvvmSamplesLauncher:FeatureSamples/Api/GetCollection",
+            "DotvvmSamplesLauncher:FeatureSamples/Api/GridViewDataSetAspNetCore",
+            "DotvvmSamplesLauncher:FeatureSamples/Api/GridViewDataSetOwin",
+            "DotvvmSamplesLauncher:FeatureSamples/CommandArguments/CommandArguments",
+            "DotvvmSamplesLauncher:FeatureSamples/CommandArguments/ReturnValue",
+            "DotvvmSamplesLauncher:FeatureSamples/Directives/ImportDirectiveInvalid",
+            "DotvvmSamplesLauncher:FeatureSamples/Directives/ImportDirective",
+            "DotvvmSamplesLauncher:FeatureSamples/Directives/ViewModelMissingAssembly",
+            "DotvvmSamplesLauncher:FeatureSamples/GenericTypes/InCommandBinding",
+            "DotvvmSamplesLauncher:FeatureSamples/GenericTypes/InResourceBinding",
+            "DotvvmSamplesLauncher:FeatureSamples/GenericTypes/InStaticCommandBinding",
+            "DotvvmSamplesLauncher:FeatureSamples/HtmlTag/NonPairHtmlTag",
+            "DotvvmSamplesLauncher:FeatureSamples/JavascriptEvents/JavascriptEvents",
+            "DotvvmSamplesLauncher:FeatureSamples/Localization/Localization",
+            "DotvvmSamplesLauncher:FeatureSamples/Localization/Localization_NestedPage_Type",
+            "DotvvmSamplesLauncher:FeatureSamples/Localization/Localization_Control_Page",
+            "DotvvmSamplesLauncher:FeatureSamples/NestedMasterPages/Content",
+            "DotvvmSamplesLauncher:FeatureSamples/ServerComments/ServerComments",
+            // testing just javascript functionality
+            "DotvvmSamplesLauncher:FeatureSamples/Resources/CdnScriptPriority",
+            "DotvvmSamplesLauncher:FeatureSamples/Resources/CdnUnavailableResourceLoad",
+            "DotvvmSamplesLauncher:FeatureSamples/Resources/OnlineNonameResourceLoad",
+            "DotvvmSamplesLauncher:FeatureSamples/Serialization/ObservableCollectionShouldContainObservables",
+
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/ClientSideValidationDisabling",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/CustomValidation",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/DateTimeValidation_NullableDateTime",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/DateTimeValidation",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/DynamicValidation",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/EssentialTypeValidation",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/Localization",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/ModelStateErrors",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/NestedValidation",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/NullValidationTarget",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/RegexValidation",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/ValidationRulesLoadOnPostback",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/ValidationScopes",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/ValidationScopes2",
+            "DotvvmSamplesLauncher:FeatureSamples/Validation/NullValidationTarget",
+
+            "DotvvmSamplesLauncher:FeatureSamples/ViewModelDeserialization/DoesNotDropObject",
+            "DotvvmSamplesLauncher:FeatureSamples/ViewModelDeserialization/NegativeLongNumber",
+        };
         public static IEnumerable<BenchmarkRunInfo> BenchmarkSamples(IConfig config, bool getRequests = true, bool postRequests = true)
         {
             var host = CreateSamplesTestHost();
@@ -88,7 +154,8 @@ namespace DotVVM.Benchmarks
             // TODO support parameters somehow
             .Where(r => r.ParameterNames.Count() == 0)
             .Where(r => !r.RouteName.Contains("Auth") && !r.RouteName.Contains("SPARedirect") && !r.RouteName.Contains("Error")) // Auth samples cause problems, because thei viewModels are not loaded
-            .Select(r => r.BuildUrl().TrimStart('~'));
+            .Select(r => r.BuildUrl().TrimStart('~'))
+            .Where(r => !urlBlacklist.Contains(typeof(TAppLauncher).Name + ":" + r.TrimStart('/')));
 
         public static IEnumerable<BenchmarkCase> CreateBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
