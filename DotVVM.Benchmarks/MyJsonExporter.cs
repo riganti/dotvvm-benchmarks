@@ -61,7 +61,7 @@ namespace DotVVM.Benchmarks
 
             var columns = summary.GetColumns()
                 // exclude
-                .Where(col => !(col is MemoryDiagnoser.AllocationColumn || col is MemoryDiagnoser.GCCollectionColumn || col is BenchmarkDotNet.Columns.StatisticColumn || col is BenchmarkDotNet.Columns.TargetMethodColumn || col is BenchmarkDotNet.Columns.ParamColumn))
+                .Where(col => !(col is BenchmarkDotNet.Columns.StatisticColumn || col is BenchmarkDotNet.Columns.TargetMethodColumn || col is BenchmarkDotNet.Columns.ParamColumn))
                 .ToArray();
             var summaryStyle = new SummaryStyle { PrintUnitsInContent = false, PrintUnitsInHeader = true, SizeUnit = SizeUnit.B, TimeUnit = TimeUnit.Nanosecond };
 

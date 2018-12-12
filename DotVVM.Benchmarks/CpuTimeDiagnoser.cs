@@ -17,9 +17,11 @@ namespace DotVVM.Benchmarks
 {
     public class CpuTimeDiagnoser : IDiagnoser
     {
-        readonly GenericColumn TotalTimeColum = new GenericColumn("CPUTime.TotalTime", "Total CPU Time", true, UnitType.Dimensionless, "% of total CPU time");
-        readonly GenericColumn KernelTimeColum = new GenericColumn("CPUTime.KernelTime", "Kernel CPU Time", true, UnitType.Dimensionless, "% of CPU time spent in kernel");
-        readonly GenericColumn UserTimeColum = new GenericColumn("CPUTime.UserTime", "User CPU Time", true, UnitType.Dimensionless, "% of CPU time spent in userspace");
+        static readonly GenericMetricDescriptor TotalTimeColum = new GenericMetricDescriptor("CPUTime.TotalTime", "Total CPU Time", UnitType.Dimensionless, "% of total CPU time", "%", false);
+        static readonly GenericMetricDescriptor KernelTimeColum = new GenericMetricDescriptor("CPUTime.KernelTime", "Kernel CPU Time", UnitType.Dimensionless, "% of CPU time spent in kernel", "%", false);
+        static readonly GenericMetricDescriptor UserTimeColum = new GenericMetricDescriptor("CPUTime.UserTime", "User CPU Time", UnitType.Dimensionless, "% of CPU time spent in userspace", "%", false);
+
+        readonly Dictionary<BenchmarkCase, (double, double, double)> results = new Dictionary<BenchmarkCase, (double, double, double)>();
         public CpuTimeDiagnoser()
         {
         }
@@ -37,9 +39,11 @@ namespace DotVVM.Benchmarks
                 var userTime = parameters.Process.UserProcessorTime - startUserCpuTime;
                 var cpuTime = parameters.Process.TotalProcessorTime - startCpuTime;
 
-                this.TotalTimeColum.AddValue(parameters.BenchmarkCase, ((cpuTime / totalTime) * 100).ToString(), "%");
-                this.KernelTimeColum.AddValue(parameters.BenchmarkCase, ((kernelTime / totalTime) * 100).ToString(), "%");
-                this.UserTimeColum.AddValue(parameters.BenchmarkCase, ((userTime / totalTime) * 100).ToString(), "%");
+                this.results.Add(parameters.BenchmarkCase, (
+                    ((cpuTime / totalTime) * 100),
+                    ((kernelTime / totalTime) * 100),
+                    ((userTime / totalTime) * 100)
+                ));
             }
             catch(Exception ex)
             {
@@ -65,21 +69,7 @@ namespace DotVVM.Benchmarks
             startKernelCpuTime = parameters.Process.PrivilegedProcessorTime;
         }
 
-        public IColumnProvider GetColumnProvider()
-        {
-            return new SimpleColumnProvider(
-                this.TotalTimeColum,
-                this.KernelTimeColum,
-                this.UserTimeColum
-            );
-        }
-
         public RunMode GetRunMode(BenchmarkCase benchmark) => RunMode.ExtraRun;
-
-        public void ProcessResults(BenchmarkCase benchmark, BenchmarkReport report)
-        {
-        }
-
         public IEnumerable<ValidationError> Validate(ValidationParameters validationParameters)
         {
             yield break;
@@ -93,8 +83,12 @@ namespace DotVVM.Benchmarks
                 BeforeGlobalCleanup(parameters);
         }
 
-        public void ProcessResults(DiagnoserResults results)
+        public IEnumerable<Metric> ProcessResults(DiagnoserResults results)
         {
+            var (total, kernel, user) = this.results[results.BenchmarkCase];
+            yield return new Metric(TotalTimeColum, total);
+            yield return new Metric(KernelTimeColum, kernel);
+            yield return new Metric(UserTimeColum, user);
         }
 
         public void DisplayResults(ILogger logger)
@@ -104,45 +98,30 @@ namespace DotVVM.Benchmarks
         public IEnumerable<IAnalyser> Analysers => Array.Empty<IAnalyser>();
     }
 
-    public class GenericColumn : IColumn
+    public class GenericMetricDescriptor : IMetricDescriptor
     {
-        readonly Dictionary<BenchmarkCase, Func<ISummaryStyle, string>> values = new Dictionary<BenchmarkCase, Func<ISummaryStyle, string>>();
-        public GenericColumn(string id, string columnName, bool isNumeric, UnitType unitType, string legend)
+        public GenericMetricDescriptor(string id, string displayName, UnitType unitType, string legend, string unit, bool theGreaterTheBetter, string numberFormat = "G")
         {
             this.Id = id;
-            this.ColumnName = columnName;
-            this.IsNumeric = isNumeric;
+            this.DisplayName = displayName;
             this.UnitType = unitType;
             this.Legend = legend;
+            this.NumberFormat = numberFormat;
+            this.Unit = unit;
+            this.TheGreaterTheBetter = theGreaterTheBetter;
         }
         public string Id { get; }
 
-        public string ColumnName { get; }
-
-        public bool AlwaysShow => false;
-
-        public ColumnCategory Category => ColumnCategory.Diagnoser;
-
-        public int PriorityInCategory => 0;
-
-        public bool IsNumeric { get; }
-
-        public UnitType UnitType { get; }
+        public string DisplayName { get; }
 
         public string Legend { get; }
 
-        public void AddValue(BenchmarkCase benchmark, Func<ISummaryStyle, string> fn) => values.Add(benchmark, fn);
+        public string NumberFormat { get; }
 
-        public void AddValue(BenchmarkCase benchmark, string val, string unit) => AddValue(benchmark, s => s.PrintUnitsInContent ? val + unit : val);
+        public UnitType UnitType { get; }
 
-        public string GetValue(Summary summary, BenchmarkCase benchmark) => GetValue(summary, benchmark, new SummaryStyle { PrintUnitsInContent = true, PrintUnitsInHeader = true });
+        public string Unit { get; }
 
-        public string GetValue(Summary summary, BenchmarkCase benchmark, ISummaryStyle style) =>
-            values.TryGetValue(benchmark, out var fn) ? fn(style) :
-            "-";
-
-        public bool IsAvailable(Summary summary) => values.Count > 0;
-
-        public bool IsDefault(Summary summary, BenchmarkCase benchmark) => !values.ContainsKey(benchmark);
+        public bool TheGreaterTheBetter { get; }
     }
 }

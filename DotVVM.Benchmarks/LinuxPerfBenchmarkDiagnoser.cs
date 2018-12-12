@@ -116,16 +116,12 @@ namespace DotVVM.Benchmarks
         {
         }
 
-        public IColumnProvider GetColumnProvider()
+        public void AddColumnsToConfig(BenchmarkDotNet.Configs.ManualConfig config)
         {
-            FlushQueue();
-            return new SimpleColumnProvider(
-                methodColumns.Select((m, i) => (IColumn)new MethodTimeFractionColumn(m.displayName, methodPercentiles, i))
-                  .Concat(new[] { rawExportFile != null ? new FileNameColumn("perf.data file", "perf_data_file", rawExportFile) : null })
-                  .Concat(new[] { stacksExportFile != null ? new FileNameColumn("CPU stacks file", "CPU_stacks_file", stacksExportFile) : null })
-                  .Where(c => c != null)
-                  .ToArray()
-            );
+            if (rawExportFile != null)
+                config.Add(new FileNameColumn("perf.data file", "perf_data_file", rawExportFile, FlushQueue));
+            if (stacksExportFile != null)
+                config.Add(new FileNameColumn("CPU stacks file", "CPU_stacks_file", stacksExportFile, FlushQueue));
         }
 
 
@@ -146,60 +142,32 @@ namespace DotVVM.Benchmarks
                 BeforeGlobalCleanup(parameters);
         }
 
-        public void ProcessResults(DiagnoserResults results)
+        public IEnumerable<Metric> ProcessResults(DiagnoserResults results)
         {
+            FlushQueue();
+            var values = this.methodPercentiles[results.BenchmarkCase];
+            return this.methodColumns.Zip(values, (key, value) => {
+                return new Metric(
+                    new GenericMetricDescriptor("Method." + key.key, key.displayName, UnitType.Dimensionless, $"The time spent in method {key.key}", "%", false, "G"),
+                    value * 100
+                );
+            });
         }
 
         public IEnumerable<IAnalyser> Analysers => Array.Empty<IAnalyser>();
     }
 
-    public class MethodTimeFractionColumn : IColumn
-    {
-        private readonly string displayName;
-        private readonly IDictionary<BenchmarkCase, float[]> dict;
-        private readonly int mIndex;
-
-        public MethodTimeFractionColumn(string displayName, IDictionary<BenchmarkCase, float[]> dict, int mIndex)
-        {
-            this.displayName = displayName;
-            this.dict = dict;
-            this.mIndex = mIndex;
-        }
-
-        public string Id => nameof(MethodTimeFractionColumn) + "_" + displayName;
-
-        public string ColumnName => $"{displayName}";
-
-        public bool AlwaysShow => false;
-
-        public ColumnCategory Category => ColumnCategory.Custom;
-
-        public int PriorityInCategory => mIndex + 1200;
-        public bool IsNumeric => true;
-        public UnitType UnitType => UnitType.Dimensionless;
-        public string Legend => "% of inclusive CPU stacks spent in the method";
-
-        public string GetValue(Summary summary, BenchmarkCase benchmark) =>
-            GetValue(summary, benchmark, new SummaryStyle { PrintUnitsInContent = true });
-
-        public string GetValue(Summary summary, BenchmarkCase benchmark, ISummaryStyle style) =>
-            dict.TryGetValue(benchmark, out var times) ?
-            $"{times[mIndex] * 100f}{( style.PrintUnitsInContent ? "%" : "")}" :
-            "-";
-
-        public bool IsAvailable(Summary summary) => true;
-
-        public bool IsDefault(Summary summary, BenchmarkCase benchmark) => !dict.ContainsKey(benchmark);
-    }
     public class FileNameColumn : IColumn
     {
         private readonly Dictionary<BenchmarkCase, string> fileName;
+        private readonly Action flushQueue;
 
-        public FileNameColumn(string colName, string id, Dictionary<BenchmarkCase, string> fileName)
+        public FileNameColumn(string colName, string id, Dictionary<BenchmarkCase, string> fileName, Action flushQueue)
         {
             Id = id;
             ColumnName = colName;
             this.fileName = fileName;
+            this.flushQueue = flushQueue;
         }
 
         public string Id { get; }
@@ -217,6 +185,7 @@ namespace DotVVM.Benchmarks
 
         public string GetValue(Summary summary, BenchmarkCase benchmark)
         {
+            flushQueue();
             if (fileName.TryGetValue(benchmark, out var val) && File.Exists(val))
             {
                 return val;
