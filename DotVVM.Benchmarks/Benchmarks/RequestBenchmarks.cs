@@ -16,6 +16,12 @@ namespace DotVVM.Benchmarks.Benchmarks
             host = DotvvmTestHost.Create<DotvvmTestHost.DefaultLauncher>();
         }
 
+        [GlobalSetup]
+        public void Setup()
+        {
+            TestParallelFor(); TestMininalPage(); Test1000Bindins();
+        }
+
         [Benchmark]
         public void TestParallelFor()
         {
