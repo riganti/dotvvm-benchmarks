@@ -56,7 +56,7 @@ namespace DotVVM.Benchmarks
                 var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
                 foreach (var url in urls)
                 {
-                    new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.TestDotvvmRequest();
+                    new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.Get();
                     yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
                 }
             }
@@ -98,7 +98,7 @@ namespace DotVVM.Benchmarks
             {
                 try
                 {
-                    new DotvvmGetBenchmarks<TAppLauncher>(host) { Url = url }.TestDotvvmRequest();
+                    new DotvvmGetBenchmarks<TAppLauncher>(host) { Url = url }.Get();
                 }
                 catch { continue; }
                 yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
@@ -186,17 +186,20 @@ namespace DotVVM.Benchmarks
                     var html = host.GetRequest(url).Result.Contents;
                     foreach (var (json, name) in FindPostbacks(html))
                     {
-                        var fname = $"{ new string(name.Where(char.IsLetterOrDigit).ToArray()) }_{ json.GetHashCode() }";
+                        var fname = $"{ new string(url.Where(char.IsLetterOrDigit).ToArray()) }";
                         File.WriteAllText(Path.Combine(viewModelDirectory, $"{fname}.json"), json);
                         try
                         {
-                            new DotvvmPostbackBenchmarks<TAppLauncher>(host) { Url = url, SerializedViewModel = fname }.TestDotvvmRequest();
+                            new DotvvmPostbackBenchmarks<TAppLauncher>(host) { Url = url, SerializedViewModel = fname }.Postback();
                         }
                         catch { continue; }
                         result.Add(BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] {
                             new ParameterInstance(urlDefinition, url),
                             new ParameterInstance(vmDefiniton, fname)
                         })));
+
+                        // let's take only the first working post request on a page
+                        break;
                     }
                 }
                 catch { }
@@ -222,11 +225,11 @@ namespace DotVVM.Benchmarks
         [GlobalSetup]
         public void Setup()
         {
-            TestDotvvmRequest();
+            Get();
         }
 
         [Benchmark]
-        public void TestDotvvmRequest()
+        public void Get()
         {
             try
             {
@@ -252,12 +255,18 @@ namespace DotVVM.Benchmarks
         public string Url { get; set; }
         public string SerializedViewModel { get; set; }
 
+        [GlobalSetup]
+        public void Setup()
+        {
+            Postback();
+        }
+
         [Benchmark]
-        public void TestDotvvmRequest()
+        public void Postback()
         {
             try
             {
-                var r = host.PostRequest(Url, viewModels[SerializedViewModel].Value).Result;
+                var r = SynchronousMemoryDiagnoser.RunTask(() => host.PostRequest(Url, viewModels[SerializedViewModel].Value));
                 if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
             }
             catch { }

@@ -264,3 +264,4 @@ __pycache__/
 BenchmarkDotNet.Artifacts/results/
 DotVVM.Benchmarks/BenchmarkDotNet.Artifacts/
 /BenchmarkDotNet.Artifacts/
+/testViewModels
