@@ -77,10 +77,15 @@ namespace DotVVM.Benchmarks
             }
         }
 
+        Dictionary<BenchmarkCase, GcStats> savedStats = new Dictionary<BenchmarkCase, GcStats>();
+
+        public GcStats? FindGCStats(BenchmarkCase benchmark) => savedStats.TryGetValue(benchmark, out var result) ? (GcStats?)result : null;
+
         public new IEnumerable<Metric> ProcessResults(DiagnoserResults diagnoserResults)
         {
             var gcStatsLine = InterceptingExecutor.LastExecResult.Data.Last(line => !string.IsNullOrEmpty(line));
             var gcStats = GcStats.Parse(gcStatsLine);
+            savedStats[diagnoserResults.BenchmarkCase] = gcStats;
             return base.ProcessResults(new DiagnoserResults(diagnoserResults.BenchmarkCase, diagnoserResults.TotalOperations, gcStats));
             // diagnoserResults.
             // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen0, diagnoserResults.GcStats.Gen0Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);

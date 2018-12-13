@@ -81,7 +81,12 @@ namespace DotVVM.Benchmarks
                 };
 
                 // We show MemoryDiagnoser's results only if it is being used
-                if(summary.Config.GetDiagnosers().Any(diagnoser => diagnoser is MemoryDiagnoser))
+                if(summary.Config.GetDiagnosers().OfType<SynchronousMemoryDiagnoser>() is SynchronousMemoryDiagnoser smd &&
+                    smd.FindGCStats(r.BenchmarkCase) is GcStats gcStats)
+                {
+                    data.Add("Memory", gcStats);
+                }
+                else if(summary.Config.GetDiagnosers().Any(diagnoser => diagnoser is MemoryDiagnoser))
                 {
                     data.Add("Memory", r.GcStats);
                 }
