@@ -59,7 +59,7 @@ namespace DotVVM.Benchmarks
 
         private const string DiagnoserId = nameof(SynchronousMemoryDiagnoser);
 
-        public static readonly SynchronousMemoryDiagnoser Default = new SynchronousMemoryDiagnoser();
+        public static readonly new SynchronousMemoryDiagnoser Default = new SynchronousMemoryDiagnoser();
 
         public new RunMode GetRunMode(BenchmarkCase benchmarkCase) => RunMode.ExtraRun;
 

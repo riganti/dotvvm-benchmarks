@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Medallion.Shell;
 
 namespace DotVVM.Benchmarks
 {
@@ -13,12 +14,13 @@ namespace DotVVM.Benchmarks
     {
         private static object locker = new object();
 
-        static void StopCollection(Process perfProcess)
+        static void StopCollection(Command perfProcess)
         {
-            if (!perfProcess.HasExited)
-                Process.Start("kill", $"-s SIGINT {perfProcess.Id}");
-            if (!perfProcess.WaitForExit(2_000))
+            if (!perfProcess.Process.HasExited)
+                Command.Run("kill", new [] {"-s", "SIGINT", perfProcess.ProcessId.ToString()}).Wait();
+            if (!perfProcess.Process.WaitForExit(2_000))
                 throw new Exception("perf did not exit");
+            perfProcess.Process.Dispose();
         }
 
         public static void ExecMapgen(Process process)
@@ -33,23 +35,23 @@ namespace DotVVM.Benchmarks
             // touch the file
             // File.Create(outFile).Dispose();
 
-            var args = new ProcessStartInfo("perf", $"record -o {outFile} --pid {process.Id} -F 300 -g");
-            var perfProcess = Process.Start(args);
-            if (perfProcess.WaitForExit(100))
+            var perfCmd = Command.Run("perf", new [] { "record", "-o", outFile, "--pid", process.Id.ToString(), "-F", "300", "-g" }, opt => { opt.DisposeOnExit(false); });
+
+            if (perfCmd.Process.WaitForExit(100))
                 throw new Exception("perf has exited ;(");
-            return new CollectionHandler(perfProcess, process, outFile, removeOutFile, exportStacksFile, allowDotnetMapgen);
+            return new CollectionHandler(perfCmd, process, outFile, removeOutFile, exportStacksFile, allowDotnetMapgen);
         }
 
         public class CollectionHandler
         {
-            private readonly Process perfProcess;
+            private readonly Command perfProcess;
             private readonly Process process;
             private readonly bool removeOutFile;
             private readonly string exportStacksFile;
             private readonly string outFile;
             private readonly bool allowDotnetMapgen;
 
-            public CollectionHandler(Process perfProcess, Process process, string outFile, bool removeOutFile = true, string exportStacksFile = null, bool allowDotnetMapgen = true)
+            public CollectionHandler(Command perfProcess, Process process, string outFile, bool removeOutFile = true, string exportStacksFile = null, bool allowDotnetMapgen = true)
             {
                 this.allowDotnetMapgen = allowDotnetMapgen;
                 this.perfProcess = perfProcess;
@@ -105,21 +107,19 @@ namespace DotVVM.Benchmarks
 
             private IEnumerable<(string[], int)> LoadPerfStacks(string file)
             {
-                var args = new ProcessStartInfo("bash");
-                args.RedirectStandardOutput = true;
-                args.RedirectStandardInput = true;
-                var proc = Process.Start(args);
-                using (var input = proc.StandardInput)
-                {
-                    if (file.Contains("'")) throw new Exception("File contains `'`");
-                    input.WriteLine($"perf script -i '{file}' | FlameGraph/stackcollapse-perf.pl --all");
-                }
-                var output = proc.StandardOutput;
+                var command =
+                    Command.Run("perf", new [] { "script", "-i", file }).PipeTo(
+                    Command.Run("FlameGraph/stackcollapse-perf.pl", "--all"));
+
+                var output = command.StandardOutput;
+
                 string line = null;
+                int lineCount = 0;
                 using (var export = OpenStacksFile())
                 {
                     while ((line = output.ReadLine()) != null)
                     {
+                        lineCount++;
                         export?.WriteLine(line);
                         var lastSpace = line.LastIndexOf(' ');
                         if (lastSpace < 0) continue;
@@ -128,8 +128,13 @@ namespace DotVVM.Benchmarks
                         stacks[stacks.Length - 1] = stacks[stacks.Length - 1].Remove(stacks[stacks.Length - 1].Length - (line.Length - lastSpace));
                         yield return (stacks, number);
                     }
-                    if (export != null)
-                        Console.WriteLine($"CPU Stacks exported to {this.exportStacksFile}");
+                }
+                if (this.exportStacksFile != null && lineCount > 0)
+                    Console.WriteLine($"CPU Stacks exported to {this.exportStacksFile}");
+                if (this.exportStacksFile != null && lineCount == 0)
+                {
+                    Console.WriteLine($"Export of stacks failed - there was nothing");
+                    try { File.Delete(this.exportStacksFile); } catch { Console.WriteLine(" ... and delete of the export file failed."); }
                 }
             }
         }
