@@ -18,7 +18,7 @@ namespace DotVVM.Benchmarks
         {
             if (!perfProcess.Process.HasExited)
                 Command.Run("kill", new [] {"-s", "SIGINT", perfProcess.ProcessId.ToString()}).Wait();
-            if (!perfProcess.Process.WaitForExit(2_000))
+            if (!perfProcess.Process.WaitForExit(20_000))
                 throw new Exception("perf did not exit");
             perfProcess.Process.Dispose();
         }

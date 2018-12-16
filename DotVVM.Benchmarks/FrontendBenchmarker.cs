@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using DotVVM.Framework.Utils;
 using Newtonsoft.Json.Linq;
+using Medallion.Shell;
 
 namespace DotVVM.Benchmarks
 {
@@ -19,7 +20,7 @@ namespace DotVVM.Benchmarks
         public bool Preload = false;
         /// --sitespeed
         public bool Sitespeed = true;
-        public string Browser = "chrome";
+        public string Browser = "firefox";
         public int Iterations = 10;
         public string[] GetArgs(string testUrl)
         {
@@ -48,24 +49,22 @@ namespace DotVVM.Benchmarks
 
     public class FrontendBenchmarker
     {
-        private const string browserTimeDockerImage = "sitespeedio/browsertime:2.1.7";
+        private const string browserTimeDockerImage = "sitespeedio/browsertime:3.12.0";
         private static IEnumerable<string> RunBenchmark(BrowserTimeOptions options, string resultsDirectory, string url)
         {
             var args = options.GetArgs(url);
-            var processStartInfo = new ProcessStartInfo("sudo", $"docker run --shm-size=1g --rm -v \"{resultsDirectory}\":/browsertime {browserTimeDockerImage} {string.Join(" ", args)}");
-            Console.WriteLine($"// running browsertime - {processStartInfo.Arguments}");
-            processStartInfo.RedirectStandardOutput = true;
-            var process = Process.Start(processStartInfo);
+            Debug.Assert(!resultsDirectory.Contains(':'));
+            var dockerCommand = new [] { "docker", "run", "--shm-size=1g" , "--rm", "-v", $"{resultsDirectory}:/browsertime", browserTimeDockerImage, }.Concat(args).ToArray();
+            Console.WriteLine($"// running browsertime - {string.Join(" ", dockerCommand)}");
+            var command = Command.Run("sudo", dockerCommand);
 
-            string line;
-            while ((line = process.StandardOutput.ReadLine()) != null)
-            {
+            foreach (var line in command.StandardOutput.GetLines())
                 yield return line;
-            }
-            if (!process.WaitForExit(2_000))
+
+            if (!command.Task.Wait(2_000))
                 throw new Exception("BrowserTime: Process has not exited, but out stream is closed");
-            if (process.ExitCode != 0)
-                throw new Exception($"BrowserTIme: Exit code = {process.ExitCode}");
+            if (command.Result.ExitCode != 0)
+                throw new Exception($"BrowserTime: Exit code = {command.Result.ExitCode}");
         }
 
         private static BrowserTimeResults ParseResults(string resultsDirectory, IEnumerable<string> lines, bool removeDir)
@@ -136,9 +135,9 @@ namespace DotVVM.Benchmarks
 
                 try
                 {
+                    // warm up the server
                     Enumerable.Range(0, 40)
                         .Select(_ => new HttpClient().GetStringAsync(absUrl))
-                        .ToArray()
                         .Apply(Task.WhenAll)
                         .Wait();
                     var results = ParseResults(resultDirectory, RunBenchmark(browserTimeOptions, resultDirectory, absUrl), removeDir: true);
