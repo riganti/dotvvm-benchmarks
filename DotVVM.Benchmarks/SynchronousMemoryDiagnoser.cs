@@ -54,7 +54,10 @@ namespace DotVVM.Benchmarks
 
         public SynchronousMemoryDiagnoser()
         {
-            System.IO.File.Delete(MarkerFileName);
+            if (System.IO.File.Exists(MarkerFileName))
+            {
+                System.IO.File.Delete(MarkerFileName);
+            }
         }
 
         private const string DiagnoserId = nameof(SynchronousMemoryDiagnoser);
