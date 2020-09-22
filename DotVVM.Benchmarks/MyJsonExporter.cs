@@ -14,7 +14,9 @@ using BenchmarkDotNet.Environments;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using BenchmarkDotNet.Columns;
-using BenchmarkDotNet.Horology;
+using System.Globalization;
+using Perfolizer.Horology;
+using BenchmarkDotNet.Configs;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -26,13 +28,16 @@ namespace DotVVM.Benchmarks
 {
     public class MyJsonExporter: ExporterBase
     {
+        private readonly IConfig config;
+
         protected override string FileExtension => "json";
 
         private bool IndentJson { get; set; }
 
-        public MyJsonExporter(bool indentJson = true)
+        public MyJsonExporter(IConfig config, bool indentJson = true)
         {
             IndentJson = indentJson;
+            this.config = config;
         }
 
         public override void ExportToLog(Summary summary, ILogger logger)
@@ -50,7 +55,7 @@ namespace DotVVM.Benchmarks
                 summary.HostEnvironmentInfo.HasAttachedDebugger,
                 summary.HostEnvironmentInfo.HasRyuJit,
                 summary.HostEnvironmentInfo.Configuration,
-                summary.HostEnvironmentInfo.JitModules,
+                summary.HostEnvironmentInfo.JitInfo,
                 DotNetCliVersion = summary.HostEnvironmentInfo.DotNetSdkVersion.Value,
                 summary.HostEnvironmentInfo.ChronometerFrequency,
                 HardwareTimerKind = summary.HostEnvironmentInfo.HardwareTimerKind.ToString()
@@ -63,7 +68,7 @@ namespace DotVVM.Benchmarks
                 // exclude
                 .Where(col => !(col is BenchmarkDotNet.Columns.StatisticColumn || col is BenchmarkDotNet.Columns.TargetMethodColumn || col is BenchmarkDotNet.Columns.ParamColumn))
                 .ToArray();
-            var summaryStyle = new SummaryStyle { PrintUnitsInContent = false, PrintUnitsInHeader = true, SizeUnit = SizeUnit.B, TimeUnit = TimeUnit.Nanosecond };
+            var summaryStyle = new SummaryStyle(CultureInfo.InvariantCulture, printUnitsInHeader: true, printUnitsInContent: false, sizeUnit: SizeUnit.B, timeUnit: TimeUnit.Nanosecond);
 
             var benchmarks = summary.Reports.Select(r =>
             {
@@ -81,12 +86,12 @@ namespace DotVVM.Benchmarks
                 };
 
                 // We show MemoryDiagnoser's results only if it is being used
-                if(summary.Config.GetDiagnosers().OfType<SynchronousMemoryDiagnoser>().FirstOrDefault() is SynchronousMemoryDiagnoser smd &&
+                if(config.GetDiagnosers().OfType<SynchronousMemoryDiagnoser>().FirstOrDefault() is SynchronousMemoryDiagnoser smd &&
                     smd.FindGCStats(r.BenchmarkCase) is GcStats gcStats)
                 {
                     data.Add("Memory", gcStats);
                 }
-                else if(summary.Config.GetDiagnosers().Any(diagnoser => diagnoser is MemoryDiagnoser))
+                else if(config.GetDiagnosers().Any(diagnoser => diagnoser is MemoryDiagnoser))
                 {
                     data.Add("Memory", r.GcStats);
                 }

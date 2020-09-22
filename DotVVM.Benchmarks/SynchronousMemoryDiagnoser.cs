@@ -35,7 +35,7 @@ using BenchmarkDotNet.Validators;
 
 namespace DotVVM.Benchmarks
 {
-    public class SynchronousMemoryDiagnoser : MemoryDiagnoser, IDiagnoser
+    public class SynchronousMemoryDiagnoser : IDiagnoser
     {
         private static bool isProfiling = System.IO.File.Exists(MarkerFileName);
         public static T RunTask<T>(Func<Task<T>> task)
@@ -62,13 +62,17 @@ namespace DotVVM.Benchmarks
 
         private const string DiagnoserId = nameof(SynchronousMemoryDiagnoser);
 
-        public static readonly new SynchronousMemoryDiagnoser Default = new SynchronousMemoryDiagnoser();
+        public static readonly SynchronousMemoryDiagnoser Default = new SynchronousMemoryDiagnoser();
 
-        public new RunMode GetRunMode(BenchmarkCase benchmarkCase) => RunMode.ExtraRun;
+        public RunMode GetRunMode(BenchmarkCase benchmarkCase) => RunMode.ExtraRun;
 
-        public new IEnumerable<string> Ids => new[] { DiagnoserId };
+        public IEnumerable<string> Ids => new[] { DiagnoserId };
 
-        public new void Handle(HostSignal signal, DiagnoserActionParameters parameters)
+        public IEnumerable<IExporter> Exporters => Array.Empty<IExporter>();
+
+        public IEnumerable<IAnalyser> Analysers => Array.Empty<IAnalyser>();
+
+        public void Handle(HostSignal signal, DiagnoserActionParameters parameters)
         {
             if (signal == HostSignal.AfterProcessExit)
             {
@@ -84,17 +88,33 @@ namespace DotVVM.Benchmarks
 
         public GcStats? FindGCStats(BenchmarkCase benchmark) => savedStats.TryGetValue(benchmark, out var result) ? (GcStats?)result : null;
 
-        public new IEnumerable<Metric> ProcessResults(DiagnoserResults diagnoserResults)
+        public IEnumerable<Metric> ProcessResults(DiagnoserResults diagnoserResults)
         {
-            var gcStatsLine = InterceptingExecutor.LastExecResult.Data.Last(line => !string.IsNullOrEmpty(line));
+            var gcStatsLine = InterceptingExecutor.LastExecResult.Data.LastOrDefault(line => line.StartsWith("GC"));
+            if (gcStatsLine is null)
+                Console.WriteLine(string.Join("\n", InterceptingExecutor.LastExecResult.Data));
             var gcStats = GcStats.Parse(gcStatsLine);
             savedStats[diagnoserResults.BenchmarkCase] = gcStats;
-            return base.ProcessResults(new DiagnoserResults(diagnoserResults.BenchmarkCase, diagnoserResults.TotalOperations, gcStats));
+            return
+                MemoryDiagnoser.Default.ProcessResults(new DiagnoserResults(diagnoserResults.BenchmarkCase, diagnoserResults.TotalOperations, gcStats, diagnoserResults.ThreadingStats))
+                .Select(m => new Metric(
+                    new GenericMetricDescriptor("X" + m.Descriptor.Id, "X" + m.Descriptor.DisplayName, m.Descriptor.UnitType, m.Descriptor.Legend, m.Descriptor.Unit, m.Descriptor.TheGreaterTheBetter, m.Descriptor.NumberFormat),
+                    m.Value
+                ));
             // diagnoserResults.
             // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen0, diagnoserResults.GcStats.Gen0Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);
             // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen1, diagnoserResults.GcStats.Gen1Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);
             // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen2, diagnoserResults.GcStats.Gen2Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);
             // yield return new Metric(AllocatedMemoryMetricDescriptor.Instance, diagnoserResults.GcStats.BytesAllocatedPerOperation);
+        }
+
+        public void DisplayResults(ILogger logger)
+        {
+        }
+
+        public IEnumerable<ValidationError> Validate(ValidationParameters validationParameters)
+        {
+            return Enumerable.Empty<ValidationError>();
         }
 
         private class AllocatedMemoryMetricDescriptor : IMetricDescriptor

@@ -84,7 +84,7 @@ namespace DotVVM.Benchmarks
 
         public void BeforeMainRun(DiagnoserActionParameters parameters)
         {
-            new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineInfo("Starting sampling profiler.");
+            parameters.Config.GetCompositeLogger().WriteLineInfo("Starting sampling profiler.");
             if (commandProcessor != null) throw new Exception("Collection is already running.");
 
             var folderInfo = parameters.BenchmarkCase.Parameters?.FolderInfo;
@@ -108,7 +108,7 @@ namespace DotVVM.Benchmarks
             catch (Exception ex)
             {
                 rawExportFile?.Remove(parameters.BenchmarkCase);
-                new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineError("Could not start trace: " + ex);
+                parameters.Config.GetCompositeLogger().WriteLineError("Could not start trace: " + ex);
             }
         }
 
@@ -119,9 +119,9 @@ namespace DotVVM.Benchmarks
         public void AddColumnsToConfig(BenchmarkDotNet.Configs.ManualConfig config)
         {
             if (rawExportFile != null)
-                config.Add(new FileNameColumn("perf.data file", "perf_data_file", rawExportFile, FlushQueue));
+                config.AddColumn(new FileNameColumn("perf.data file", "perf_data_file", rawExportFile, FlushQueue));
             if (stacksExportFile != null)
-                config.Add(new FileNameColumn("CPU stacks file", "CPU_stacks_file", stacksExportFile, FlushQueue));
+                config.AddColumn(new FileNameColumn("CPU stacks file", "CPU_stacks_file", stacksExportFile, FlushQueue));
         }
 
 
@@ -193,7 +193,7 @@ namespace DotVVM.Benchmarks
             return "-";
         }
 
-        public string GetValue(Summary summary, BenchmarkCase benchmark, ISummaryStyle style)
+        public string GetValue(Summary summary, BenchmarkCase benchmark, SummaryStyle style)
         {
             return GetValue(summary, benchmark);
         }

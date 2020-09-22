@@ -47,7 +47,7 @@ namespace DotVVM.Benchmarks
             }
             catch(Exception ex)
             {
-                new CompositeLogger(parameters.Config.GetLoggers().ToArray()).WriteLineError(ex.ToString());
+                parameters.Config.GetCompositeLogger().WriteLineError(ex.ToString());
             }
             finally
             {
@@ -69,7 +69,7 @@ namespace DotVVM.Benchmarks
             startKernelCpuTime = parameters.Process.PrivilegedProcessorTime;
         }
 
-        public RunMode GetRunMode(BenchmarkCase benchmark) => RunMode.ExtraRun;
+        public RunMode GetRunMode(BenchmarkCase benchmark) => RunMode.NoOverhead;
         public IEnumerable<ValidationError> Validate(ValidationParameters validationParameters)
         {
             yield break;

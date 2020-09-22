@@ -119,11 +119,11 @@ namespace DotVVM.Benchmarks
             IEnumerable<BenchmarkCase> createMvcBenchmarks(BenchmarkCase b)
             {
                 var urls = new[] { "/Home/Index" };
-                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
+                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string));
                 foreach (var url in urls)
                 {
                     new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.Get();
-                    yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
+                    yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url, SummaryStyle.Default) }), config.CreateImmutableConfig());
                 }
             }
             var runInfo = BenchmarkConverter.TypeToBenchmarks(typeof(DotvvmGetBenchmarks<TAppLauncher>), config);
@@ -160,7 +160,7 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<BenchmarkCase> CreateBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string));
             foreach (var url in urls)
             {
                 try
@@ -168,7 +168,7 @@ namespace DotVVM.Benchmarks
                     new DotvvmGetBenchmarks<TAppLauncher>(host) { Url = url }.Get();
                 }
                 catch { continue; }
-                yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url) }));
+                yield return BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] { new ParameterInstance(definiton, url, SummaryStyle.Default) }), b.Config);
             }
         }
 
@@ -239,8 +239,8 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<BenchmarkCase> CreatePostbackBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { }, false);
-            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { }, false);
+            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string));
+            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { }, false, typeof(string));
             var viewModelDirectory = Environment.GetEnvironmentVariable("DotvvmTests_ViewModelDirectory") ??
                 Path.GetFullPath("testViewModels");
             Environment.SetEnvironmentVariable("DotvvmTests_ViewModelDirectory", viewModelDirectory);
@@ -261,9 +261,9 @@ namespace DotVVM.Benchmarks
                         }
                         catch { continue; }
                         result.Add(BenchmarkCase.Create(b.Descriptor, b.Job, new ParameterInstances(new[] {
-                            new ParameterInstance(urlDefinition, url),
-                            new ParameterInstance(vmDefiniton, fname)
-                        })));
+                            new ParameterInstance(urlDefinition, url, SummaryStyle.Default),
+                            new ParameterInstance(vmDefiniton, fname, SummaryStyle.Default)
+                        }), b.Config));
 
                         // let's take only the first working post request on a page
                         break;

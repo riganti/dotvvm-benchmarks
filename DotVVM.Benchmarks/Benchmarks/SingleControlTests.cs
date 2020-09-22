@@ -26,6 +26,9 @@ namespace DotVVM.Benchmarks.Benchmarks
         private readonly TestViewModel viewModel = new TestViewModel() { Property = 135 };
 
         private readonly IValueBinding testValueBinding;
+        private readonly IValueBinding boolValueBinding;
+        readonly HtmlGenericControl basicHtmlElement;
+        readonly HtmlGenericControl richHtmlElement;
         public SingleControlTests()
         {
             context = new TestDotvvmRequestContext() {
@@ -42,6 +45,18 @@ namespace DotVVM.Benchmarks.Benchmarks
             DotvvmBindableObject.DataContextProperty.SetValue(rootView, viewModel);
 
             testValueBinding = ValueBindingExpression.CreateBinding(bcs, h => ((TestViewModel)h[0]).Property, dataContext);
+            boolValueBinding = ValueBindingExpression.CreateBinding(bcs, h => ((TestViewModel)h[0]).Property == 0, dataContext);
+
+            basicHtmlElement = new HtmlGenericControl("div");
+            richHtmlElement = new HtmlGenericControl("div");
+            HtmlGenericControl.IncludeInPageProperty.SetValue(richHtmlElement, boolValueBinding);
+            HtmlGenericControl.CssClassesGroupDescriptor.GetDotvvmProperty("my-class").SetValue(richHtmlElement, boolValueBinding);
+            HtmlGenericControl.CssStylesGroupDescriptor.GetDotvvmProperty("width").SetValue(richHtmlElement, testValueBinding);
+            richHtmlElement.Attributes["data-my-attr"] = "HELLO";
+            richHtmlElement.Attributes["title"] = testValueBinding;
+
+            Internal.UniqueIDProperty.SetValue(basicHtmlElement, "c1");
+            Internal.UniqueIDProperty.SetValue(richHtmlElement, "c1");
         }
         private void InitAndRender(Func<DotvvmControl> create)
         {
@@ -67,5 +82,19 @@ namespace DotVVM.Benchmarks.Benchmarks
             Literal.TextProperty.SetValue(l, "");
             return l;
         });
+
+        [Benchmark]
+        public void RenderTextBox() => InitAndRender(() => {
+            var t = new TextBox();
+            TextBox.TextProperty.SetValue(t, testValueBinding);
+            t.Attributes["class"] = "my-class";
+            return t;
+        });
+
+
+        [Benchmark]
+        public void RenderBasicHtmlElement() => InitAndRender(() => basicHtmlElement);
+        [Benchmark]
+        public void RenderRichHtmlElement() => InitAndRender(() => richHtmlElement);
     }
 }

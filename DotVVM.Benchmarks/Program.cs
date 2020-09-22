@@ -21,7 +21,6 @@ using BenchmarkDotNet.Characteristics;
 using BenchmarkDotNet.Toolchains;
 using BenchmarkDotNet.Toolchains.Results;
 using BenchmarkDotNet.Loggers;
-using BenchmarkDotNet.Horology;
 using BenchmarkDotNet.Toolchains.Parameters;
 
 // #if C_77b3b6f || DEBUG
@@ -111,8 +110,8 @@ namespace DotVVM.Benchmarks
 
             var b = new List<BenchmarkRunInfo>();
 #if RUN_synth_tests
-            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
-            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
+            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
+            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
             b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.SingleControlTests), conf));
 #endif
 #if RUN_dotvvm_samples
@@ -130,7 +129,7 @@ namespace DotVVM.Benchmarks
                 //b.GroupBy(t => t.Parameters.Items.Any(p => p.Name == nameof(DotvvmPostbackBenchmarks<DotvvmSamplesLauncher>.SerializedViewModel))).SelectMany(g => g.Take(27).Skip(25))
                 b
                 //b.Take(1)
-                .ToArray(), conf);
+                .ToArray());
         }
 
         static IConfig CreateTestConfiguration()
@@ -146,14 +145,15 @@ namespace DotVVM.Benchmarks
                                     ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::BuildViewModel", "Serialize"),
                                 };
             var conf = ManualConfig.Create(DefaultConfig.Instance);
-            conf.Add(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
-            conf.Add(BenchmarkDotNet.Exporters.HtmlExporter.Default);
-            conf.Add(new MyJsonExporter());
-            conf.Add(WithRunCount(Job.RyuJitX64.WithGcServer(true).WithGcForce(false)));
-            conf.Add(BenchmarkDotNet.Columns.StatisticColumn.Median);
-            conf.Add(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
+            conf.AddExporter(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
+            conf.AddExporter(BenchmarkDotNet.Exporters.HtmlExporter.Default);
+            conf.AddExporter(new MyJsonExporter(conf));
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcServer(true).WithGcForce(false)));
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Median);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Min);
 
-            conf.Add(new CpuTimeDiagnoser());
+            conf.AddDiagnoser(new CpuTimeDiagnoser());
 #if DIAGNOSER_cpu_sampling
             var benchmarkDiagnoser = new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
 #if DEBUG || EXPORT_rawperf
@@ -165,7 +165,10 @@ namespace DotVVM.Benchmarks
             conf.Add(benchmarkDiagnoser);
             benchmarkDiagnoser.AddColumnsToConfig(conf);
             Console.WriteLine("CPU Sampling [ON]");
-            conf.Add(SynchronousMemoryDiagnoser.Default);
+            conf.AddDiagnoser(MemoryDiagnoser.Default);
+            conf.AddDiagnoser(SynchronousMemoryDiagnoser.Default);
+#else
+            // conf.Add(MemoryDiagnoser.Default)
 #endif
             return conf;
         }
@@ -173,17 +176,19 @@ namespace DotVVM.Benchmarks
         private static Job WithRunCount(Job job)
         {
             job = new Job(job);
-            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.Current.Value;
+            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp31;
             job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), new InterceptingExecutor(toolchain.Executor));
             // job = job.WithMinIterationTime(BenchmarkDotNet.Horology.TimeInterval.FromMilliseconds(200));
             //job.Run.WarmupCount = 1;
             return job
-                .With(new MsBuildArgument[] { new MsBuildArgument("--disable-parallel") })
-                .WithMaxRelativeError(0.008)
+                .WithArguments(new MsBuildArgument[] { new MsBuildArgument("--disable-parallel") })
 #if DEBUG_RUN
                 .WithMaxIterationCount(8).WithMinIterationCount(6).WithWarmupCount(1)
-#else
+#elif PRECISE_RUN
+                .WithMaxRelativeError(0.008)
                 .WithMaxIterationCount(1000).WithMinIterationCount(64)
+#else
+                .WithMaxIterationCount(60).WithMinIterationCount(10).WithWarmupCount(2)
 #endif
 
                 ;
