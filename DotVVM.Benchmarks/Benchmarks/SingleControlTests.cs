@@ -52,8 +52,8 @@ namespace DotVVM.Benchmarks.Benchmarks
             HtmlGenericControl.IncludeInPageProperty.SetValue(richHtmlElement, boolValueBinding);
             HtmlGenericControl.CssClassesGroupDescriptor.GetDotvvmProperty("my-class").SetValue(richHtmlElement, boolValueBinding);
             HtmlGenericControl.CssStylesGroupDescriptor.GetDotvvmProperty("width").SetValue(richHtmlElement, testValueBinding);
-            richHtmlElement.Attributes["data-my-attr"] = "HELLO";
-            richHtmlElement.Attributes["title"] = testValueBinding;
+            richHtmlElement.Attributes.Add("data-my-attr", "HELLO");
+            richHtmlElement.Attributes.Add("title", new(testValueBinding));
 
             Internal.UniqueIDProperty.SetValue(basicHtmlElement, "c1");
             Internal.UniqueIDProperty.SetValue(richHtmlElement, "c1");
@@ -87,7 +87,7 @@ namespace DotVVM.Benchmarks.Benchmarks
         public void RenderTextBox() => InitAndRender(() => {
             var t = new TextBox();
             TextBox.TextProperty.SetValue(t, testValueBinding);
-            t.Attributes["class"] = "my-class";
+            t.Attributes.Add("class", "my-class");
             return t;
         });
 

@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5</TargetFramework>
+    <LangVersion>9.0</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
     <RootNamespace>DotVVM.Benchmarks</RootNamespace>
@@ -11,15 +12,15 @@
     <EmbeddedResource Include="Resources/*" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\dotvvm\src\DotVVM.Framework.Hosting.AspNetCore\DotVVM.Framework.Hosting.AspNetCore.csproj" />
-    <ProjectReference Include="..\dotvvm\src\DotVVM.Samples.BasicSamples.AspNetCore\DotVVM.Samples.BasicSamples.AspNetCore.csproj" />
+    <ProjectReference Include="..\dotvvm\src\Framework\Hosting.AspNetCore\DotVVM.Framework.Hosting.AspNetCore.csproj" />
+    <ProjectReference Include="..\dotvvm\src\Samples\AspNetCore\DotVVM.Samples.BasicSamples.AspNetCore.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="0.9.9" />
-    <PackageReference Include="BenchmarkDotNet" Version="0.12.1" />
-    <PackageReference Include="MedallionShell" Version="1.5.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.0" />
+    <PackageReference Include="AngleSharp" Version="0.16.0" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
+    <PackageReference Include="MedallionShell" Version="1.6.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="5.0.9" />
   </ItemGroup>
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);$(AdditionalBenchmarkConstants)</DefineConstants>

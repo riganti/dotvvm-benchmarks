@@ -103,7 +103,7 @@ namespace DotVVM.Benchmarks
             return;
 #endif
 
-            Environment.SetEnvironmentVariable("COMPlus_PerfMapEnabled", "1");
+            // Environment.SetEnvironmentVariable("COMPlus_PerfMapEnabled", "1");
             if (Directory.Exists("testViewModels")) Directory.Delete("testViewModels", true);
 
             var conf = CreateTestConfiguration();
@@ -111,8 +111,8 @@ namespace DotVVM.Benchmarks
             var b = new List<BenchmarkRunInfo>();
 #if RUN_synth_tests
             // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
-            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
-            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.SingleControlTests), conf));
+            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
+            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.SingleControlTests), conf));
 #endif
 #if RUN_dotvvm_samples
             b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
@@ -145,38 +145,38 @@ namespace DotVVM.Benchmarks
                                     ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::BuildViewModel", "Serialize"),
                                 };
             var conf = ManualConfig.Create(DefaultConfig.Instance);
-            conf.AddExporter(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
-            conf.AddExporter(BenchmarkDotNet.Exporters.HtmlExporter.Default);
-            conf.AddExporter(new MyJsonExporter(conf));
-            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcServer(true).WithGcForce(false)));
-            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Median);
-            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
-            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Min);
+            // conf.AddExporter(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
+            // conf.AddExporter(BenchmarkDotNet.Exporters.HtmlExporter.Default);
+            // conf.AddExporter(new MyJsonExporter(conf));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcServer(true).WithGcForce(false)));
+            // conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Median);
+            // conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
+            // conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Min);
 
-            conf.AddDiagnoser(new CpuTimeDiagnoser());
-#if DIAGNOSER_cpu_sampling
-            var benchmarkDiagnoser = new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
-#if DEBUG || EXPORT_rawperf
-                enableRawPerfExport: true
-#else
-                enableRawPerfExport: false
-#endif
-            );
-            conf.Add(benchmarkDiagnoser);
-            benchmarkDiagnoser.AddColumnsToConfig(conf);
-            Console.WriteLine("CPU Sampling [ON]");
-            conf.AddDiagnoser(MemoryDiagnoser.Default);
-            conf.AddDiagnoser(SynchronousMemoryDiagnoser.Default);
-#else
-            // conf.Add(MemoryDiagnoser.Default)
-#endif
+            // conf.AddDiagnoser(new CpuTimeDiagnoser());
+// #if DIAGNOSER_cpu_sampling
+//             var benchmarkDiagnoser = new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
+// #if DEBUG || EXPORT_rawperf
+//                 enableRawPerfExport: true
+// #else
+//                 enableRawPerfExport: false
+// #endif
+//             );
+//             conf.Add(benchmarkDiagnoser);
+//             benchmarkDiagnoser.AddColumnsToConfig(conf);
+//             Console.WriteLine("CPU Sampling [ON]");
+//             conf.AddDiagnoser(MemoryDiagnoser.Default);
+//             conf.AddDiagnoser(SynchronousMemoryDiagnoser.Default);
+// #else
+//             // conf.Add(MemoryDiagnoser.Default)
+// #endif
             return conf;
         }
 
         private static Job WithRunCount(Job job)
         {
             job = new Job(job);
-            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp31;
+            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp50;
             job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), new InterceptingExecutor(toolchain.Executor));
             // job = job.WithMinIterationTime(BenchmarkDotNet.Horology.TimeInterval.FromMilliseconds(200));
             //job.Run.WarmupCount = 1;

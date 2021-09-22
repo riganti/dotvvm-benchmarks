@@ -96,7 +96,7 @@ namespace DotVVM.Benchmarks
             var gcStats = GcStats.Parse(gcStatsLine);
             savedStats[diagnoserResults.BenchmarkCase] = gcStats;
             return
-                MemoryDiagnoser.Default.ProcessResults(new DiagnoserResults(diagnoserResults.BenchmarkCase, diagnoserResults.TotalOperations, gcStats, diagnoserResults.ThreadingStats))
+                MemoryDiagnoser.Default.ProcessResults(new DiagnoserResults(diagnoserResults.BenchmarkCase, diagnoserResults.TotalOperations, gcStats, diagnoserResults.ThreadingStats, diagnoserResults.BuildResult))
                 .Select(m => new Metric(
                     new GenericMetricDescriptor("X" + m.Descriptor.Id, "X" + m.Descriptor.DisplayName, m.Descriptor.UnitType, m.Descriptor.Legend, m.Descriptor.Unit, m.Descriptor.TheGreaterTheBetter, m.Descriptor.NumberFormat),
                     m.Value
@@ -127,7 +127,9 @@ namespace DotVVM.Benchmarks
             public UnitType UnitType => UnitType.Size;
             public string Unit => SizeUnit.B.Name;
             public bool TheGreaterTheBetter => false;
-        }
+
+			public int PriorityInCategory => 0;
+		}
 
         private class GarbageCollectionsMetricDescriptor : IMetricDescriptor
         {
@@ -149,7 +151,9 @@ namespace DotVVM.Benchmarks
             public UnitType UnitType => UnitType.Dimensionless;
             public string Unit => "Count";
             public bool TheGreaterTheBetter => false;
-        }
+
+			public int PriorityInCategory => 0;
+		}
 }
     /// <summary>
     /// Custom synchronization context implementation using BlockingCollection.

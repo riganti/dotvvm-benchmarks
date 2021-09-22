@@ -36,36 +36,36 @@ namespace DotVVM.Benchmarks.MvcWebApp
 
         public void ConfigServices(IServiceCollection services, string currentPath)
         {
-            services.Configure<RazorViewEngineOptions>(o => {
-                o.FileProviders.Add(new FileProvider());
-                o.ViewLocationExpanders.Add(new MyLocationExpander(currentPath));
-            });
-            services.AddMvc(o => {
-            }).AddRazorOptions(options => {
-                var previous = options.CompilationCallback;
-                options.CompilationCallback = context => {
-                    HashSet<string> allTheReferences(Assembly a, HashSet<string> h = null)
-                    {
-                        h = h ?? new HashSet<string>();
-                        foreach (var rf in a.GetReferencedAssemblies())
-                        {
-                            if (rf.FullName.Contains("PerfView")) continue;
-                            try
-                            {
-                                Assembly assembly = Assembly.Load(rf.FullName);
-                                if (h.Add(assembly.Location))
-                                {
-                                    allTheReferences(assembly, h);
-                                }
-                            }
-                            catch { }
-                        }
-                        return h;
-                    }
-                    previous?.Invoke(context);
-                    context.Compilation = context.Compilation.AddReferences(MetadataReference.CreateFromFile(typeof(MyLocationExpander).Assembly.Location)).AddReferences(allTheReferences(typeof(MyLocationExpander).Assembly).Select(a => MetadataReference.CreateFromFile(a)));
-                };
-            });
+            // services.Configure<RazorViewEngineOptions>(o => {
+            //     o.FileProviders.Add(new FileProvider());
+            //     o.ViewLocationExpanders.Add(new MyLocationExpander(currentPath));
+            // });
+            // services.AddMvc(o => {
+            // }).AddRazorOptions(options => {
+            //     var previous = options.CompilationCallback;
+            //     options.CompilationCallback = context => {
+            //         HashSet<string> allTheReferences(Assembly a, HashSet<string> h = null)
+            //         {
+            //             h = h ?? new HashSet<string>();
+            //             foreach (var rf in a.GetReferencedAssemblies())
+            //             {
+            //                 if (rf.FullName.Contains("PerfView")) continue;
+            //                 try
+            //                 {
+            //                     Assembly assembly = Assembly.Load(rf.FullName);
+            //                     if (h.Add(assembly.Location))
+            //                     {
+            //                         allTheReferences(assembly, h);
+            //                     }
+            //                 }
+            //                 catch { }
+            //             }
+            //             return h;
+            //         }
+            //         previous?.Invoke(context);
+            //         context.Compilation = context.Compilation.AddReferences(MetadataReference.CreateFromFile(typeof(MyLocationExpander).Assembly.Location)).AddReferences(allTheReferences(typeof(MyLocationExpander).Assembly).Select(a => MetadataReference.CreateFromFile(a)));
+            //     };
+            // });
         }
 
         class MyLocationExpander : IViewLocationExpander

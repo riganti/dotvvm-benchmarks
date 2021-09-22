@@ -119,7 +119,7 @@ namespace DotVVM.Benchmarks
             IEnumerable<BenchmarkCase> createMvcBenchmarks(BenchmarkCase b)
             {
                 var urls = new[] { "/Home/Index" };
-                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string));
+                var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string), 0);
                 foreach (var url in urls)
                 {
                     new DotvvmGetBenchmarks<TAppLauncher> { Url = url }.Get();
@@ -160,7 +160,7 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<BenchmarkCase> CreateBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string));
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string), 0);
             foreach (var url in urls)
             {
                 try
@@ -178,7 +178,7 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<(string json, string name)> FindPostbacks(string html)
         {
             if (html.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) yield break;
-            var dom = new AngleSharp.Parser.Html.HtmlParser().Parse(html);
+            var dom = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
             var vm = new Lazy<JObject>(() => JObject.Parse(dom.GetElementById("__dot_viewmodel_root").GetAttribute("value")));
             foreach (var element in dom.All)
             {
@@ -239,8 +239,8 @@ namespace DotVVM.Benchmarks
         public static IEnumerable<BenchmarkCase> CreatePostbackBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string));
-            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { }, false, typeof(string));
+            var urlDefinition = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string), 0);
+            var vmDefiniton = new ParameterDefinition(nameof(DotvvmPostbackBenchmarks<TAppLauncher>.SerializedViewModel), false, new object[] { }, false, typeof(string), 0);
             var viewModelDirectory = Environment.GetEnvironmentVariable("DotvvmTests_ViewModelDirectory") ??
                 Path.GetFullPath("testViewModels");
             Environment.SetEnvironmentVariable("DotvvmTests_ViewModelDirectory", viewModelDirectory);

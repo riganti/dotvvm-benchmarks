@@ -100,7 +100,7 @@ namespace DotVVM.Benchmarks
 
     public class GenericMetricDescriptor : IMetricDescriptor
     {
-        public GenericMetricDescriptor(string id, string displayName, UnitType unitType, string legend, string unit, bool theGreaterTheBetter, string numberFormat = "G")
+        public GenericMetricDescriptor(string id, string displayName, UnitType unitType, string legend, string unit, bool theGreaterTheBetter, string numberFormat = "G", int priorityInCategory = 0)
         {
             this.Id = id;
             this.DisplayName = displayName;
@@ -109,6 +109,7 @@ namespace DotVVM.Benchmarks
             this.NumberFormat = numberFormat;
             this.Unit = unit;
             this.TheGreaterTheBetter = theGreaterTheBetter;
+            this.PriorityInCategory = priorityInCategory;
         }
         public string Id { get; }
 
@@ -123,5 +124,7 @@ namespace DotVVM.Benchmarks
         public string Unit { get; }
 
         public bool TheGreaterTheBetter { get; }
-    }
+
+		public int PriorityInCategory { get; }
+	}
 }
