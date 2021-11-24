@@ -176,7 +176,7 @@ namespace DotVVM.Benchmarks
         private static Job WithRunCount(Job job)
         {
             job = new Job(job);
-            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp50;
+            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp60;
             job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), new InterceptingExecutor(toolchain.Executor));
             // job = job.WithMinIterationTime(BenchmarkDotNet.Horology.TimeInterval.FromMilliseconds(200));
             //job.Run.WarmupCount = 1;

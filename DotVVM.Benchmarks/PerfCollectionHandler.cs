@@ -109,7 +109,7 @@ namespace DotVVM.Benchmarks
             {
                 var command =
                     Command.Run("perf", new [] { "script", "-i", file }).PipeTo(
-                    Command.Run("FlameGraph/stackcollapse-perf.pl", "--all"));
+                    Command.Run("../FlameGraph/stackcollapse-perf.pl", "--all"));
 
                 var output = command.StandardOutput;
 
