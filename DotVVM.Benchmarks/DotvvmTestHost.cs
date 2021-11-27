@@ -124,7 +124,7 @@ namespace DotVVM.Benchmarks
             public void AddFile(string path, string contents)
             {
                 var mf = new MarkupFile(path, path);
-                mf.GetType().GetProperty(nameof(MarkupFile.ContentsReaderFactory)).SetValue(mf, (Func<string>)(() => contents));
+                (mf.GetType().GetProperty("ReadContent") ?? mf.GetType().GetProperty("ContentsReaderFactory")).SetValue(mf, (Func<string>)(() => contents));
                 PathToFileMap[path] = mf;
             }
 
