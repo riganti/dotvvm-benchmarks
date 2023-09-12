@@ -1,3 +1,4 @@
+// #define RUN_perf_samples
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,7 +37,7 @@ namespace DotVVM.Benchmarks
     {
         public DotvvmConfiguration ConfigApp(IApplicationBuilder app, string currentPath)
         {
-            return app.UseDotVVM<DotVVM.Samples.BasicSamples.DotvvmStartup>(Path.Combine(currentPath, "dotvvm/src/DotVVM.Samples.Common"));
+            return app.UseDotVVM<DotVVM.Samples.BasicSamples.DotvvmStartup>(Path.Combine(currentPath, "dotvvm/src/Samples/Common"));
         }
 
         public void ConfigServices(IServiceCollection services, string currentPath)
@@ -109,6 +110,8 @@ namespace DotVVM.Benchmarks
             var conf = CreateTestConfiguration();
 
             var b = new List<BenchmarkRunInfo>();
+            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.HtmlWriterBenchmarks), conf));
+            // b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: false));
 #if RUN_synth_tests
             // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
             b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
@@ -118,7 +121,7 @@ namespace DotVVM.Benchmarks
             b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
 #endif
 #if RUN_perf_samples
-            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: false));
             Console.WriteLine("Running with perf samples");
 #endif
 #if RUN_aspnet_mvc
@@ -145,13 +148,14 @@ namespace DotVVM.Benchmarks
                                     ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::BuildViewModel", "Serialize"),
                                 };
             var conf = ManualConfig.Create(DefaultConfig.Instance);
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false)));
+            conf.WithOptions(ConfigOptions.DisableOptimizationsValidator | ConfigOptions.JoinSummary);
             // conf.AddExporter(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
             // conf.AddExporter(BenchmarkDotNet.Exporters.HtmlExporter.Default);
             // conf.AddExporter(new MyJsonExporter(conf));
-            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcServer(true).WithGcForce(false)));
-            // conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Median);
-            // conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
-            // conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Min);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Median);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Min);
 
             // conf.AddDiagnoser(new CpuTimeDiagnoser());
 // #if DIAGNOSER_cpu_sampling
@@ -165,11 +169,12 @@ namespace DotVVM.Benchmarks
 //             conf.Add(benchmarkDiagnoser);
 //             benchmarkDiagnoser.AddColumnsToConfig(conf);
 //             Console.WriteLine("CPU Sampling [ON]");
-//             conf.AddDiagnoser(MemoryDiagnoser.Default);
 //             conf.AddDiagnoser(SynchronousMemoryDiagnoser.Default);
 // #else
 //             // conf.Add(MemoryDiagnoser.Default)
 // #endif
+            // conf.AddDiagnoser(SynchronousMemoryDiagnoser.Default);
+            conf.AddDiagnoser(MemoryDiagnoser.Default);
             return conf;
         }
 
@@ -190,6 +195,7 @@ namespace DotVVM.Benchmarks
 #else
                 .WithMaxIterationCount(60).WithMinIterationCount(10).WithWarmupCount(2)
 #endif
+                // .WithMinIterationCount(128)
 
                 ;
         }

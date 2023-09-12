@@ -53,8 +53,9 @@ namespace DotVVM.Benchmarks.WebApp.ViewModels
             return base.Load();
         }
 
-        public override Task PreRender()
+        public override async Task PreRender()
         {
+            // await Task.Yield();
             ContainsCategory = true;
             ContainsAutomaticDecision = false;
             ContainsReceivers = true;
@@ -72,10 +73,17 @@ namespace DotVVM.Benchmarks.WebApp.ViewModels
                     new PersonalDataDTO { LegalReason = "Reason1", Id = 1, Name = "Name1", CreatedAt = DateTime.Now},
                     new PersonalDataDTO { LegalReason = "Reason2", Id = 2, Name = "Name2", CreatedAt = DateTime.UtcNow},
                     new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name3", CreatedAt = DateTime.Now.AddDays(1), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name4", CreatedAt = DateTime.Now.AddDays(2), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name5", CreatedAt = DateTime.Now.AddDays(3), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name6", CreatedAt = DateTime.Now.AddDays(4), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name7", CreatedAt = DateTime.Now.AddDays(5), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name8", CreatedAt = DateTime.Now.AddDays(6), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "Name9", CreatedAt = DateTime.Now.AddDays(7), OrganizationId = 3},
+                    new PersonalDataDTO { LegalReason = "Reason3", Id = 3, Name = "NameX", CreatedAt = DateTime.Now.AddDays(8), OrganizationId = 3},
                 };
             }
 
-            return base.PreRender();
+            await base.PreRender();
         }
 
         public void SignOut()
