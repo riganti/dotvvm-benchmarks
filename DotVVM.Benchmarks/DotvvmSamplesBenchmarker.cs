@@ -156,11 +156,12 @@ namespace DotVVM.Benchmarks
             .Where(r => !r.RouteName.Contains("Auth") && !r.RouteName.Contains("SPARedirect") && !r.RouteName.Contains("Error")) // Auth samples cause problems, because thei viewModels are not loaded
             .Select(r => r.BuildUrl().TrimStart('~'))
             .Where(r => !urlBlacklist.Contains(typeof(TAppLauncher).Name + ":" + r.TrimStart('/')));
+            // .Where(r => r.Contains("ControlSamples/GridView/LargeGrid"));
 
         public static IEnumerable<BenchmarkCase> CreateBenchmarks(BenchmarkCase b, DotvvmTestHost host, DotvvmConfiguration config)
         {
             var urls = GetTestRoutes(config);
-            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { }, false, typeof(string), 0);
+            var definiton = new ParameterDefinition(nameof(DotvvmGetBenchmarks<TAppLauncher>.Url), false, new object[] { "/", "/real-world-scenario" }, false, typeof(string), 0);
             foreach (var url in urls)
             {
                 try
@@ -300,7 +301,8 @@ namespace DotVVM.Benchmarks
         {
             try
             {
-                var r = SynchronousMemoryDiagnoser.RunTask(() => host.GetRequest(Url));
+                var r = host.GetRequest(Url).GetAwaiter().GetResult();
+                // var r = SynchronousMemoryDiagnoser.RunTask(() => host.GetRequest(Url));
                 if (string.IsNullOrEmpty(r.Contents)) throw new Exception("Result was empty");
             }
             catch { }

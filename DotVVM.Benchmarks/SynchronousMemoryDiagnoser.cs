@@ -31,6 +31,7 @@ using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Toolchains.Results;
 using BenchmarkDotNet.Validators;
 
 namespace DotVVM.Benchmarks
@@ -90,22 +91,30 @@ namespace DotVVM.Benchmarks
 
         public IEnumerable<Metric> ProcessResults(DiagnoserResults diagnoserResults)
         {
-            var gcStatsLine = InterceptingExecutor.LastExecResult.Data.LastOrDefault(line => line.StartsWith("GC"));
+            var gcStatsLine = InterceptingExecutor.LastExecResult.Results.LastOrDefault(line => line.StartsWith("GC"));
             if (gcStatsLine is null)
-                Console.WriteLine(string.Join("\n", InterceptingExecutor.LastExecResult.Data));
+                Console.WriteLine(string.Join("\n", InterceptingExecutor.LastExecResult.Results));
             var gcStats = GcStats.Parse(gcStatsLine);
             savedStats[diagnoserResults.BenchmarkCase] = gcStats;
-            return
-                MemoryDiagnoser.Default.ProcessResults(new DiagnoserResults(diagnoserResults.BenchmarkCase, diagnoserResults.TotalOperations, gcStats, diagnoserResults.ThreadingStats, diagnoserResults.BuildResult))
-                .Select(m => new Metric(
-                    new GenericMetricDescriptor("X" + m.Descriptor.Id, "X" + m.Descriptor.DisplayName, m.Descriptor.UnitType, m.Descriptor.Legend, m.Descriptor.Unit, m.Descriptor.TheGreaterTheBetter, m.Descriptor.NumberFormat),
-                    m.Value
-                ));
-            // diagnoserResults.
-            // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen0, diagnoserResults.GcStats.Gen0Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);
-            // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen1, diagnoserResults.GcStats.Gen1Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);
-            // yield return new Metric(GarbageCollectionsMetricDescriptor.Gen2, diagnoserResults.GcStats.Gen2Collections / (double)diagnoserResults.GcStats.TotalOperations * 1000);
-            // yield return new Metric(AllocatedMemoryMetricDescriptor.Instance, diagnoserResults.GcStats.BytesAllocatedPerOperation);
+
+            IMetricDescriptor mapDescriptor(IMetricDescriptor d) =>
+                new GenericMetricDescriptor("X" + d.Id, "X" + d.DisplayName, d.UnitType, d.Legend, d.Unit, d.TheGreaterTheBetter, d.NumberFormat);
+
+            var config = MemoryDiagnoser.Default.Config;
+            // copy paste from MemoryDiagnoser.ProcessResults
+            if (diagnoserResults.GcStats.Gen0Collections > 0 && config.DisplayGenColumns)
+            {
+                yield return new Metric(mapDescriptor(GarbageCollectionsMetricDescriptor.Gen0), (double)gcStats.Gen0Collections / (double)gcStats.TotalOperations * 1000.0);
+            }
+            if (diagnoserResults.GcStats.Gen1Collections > 0 && config.DisplayGenColumns)
+            {
+                yield return new Metric(mapDescriptor(GarbageCollectionsMetricDescriptor.Gen1), (double)gcStats.Gen1Collections / (double)gcStats.TotalOperations * 1000.0);
+            }
+            if (diagnoserResults.GcStats.Gen2Collections > 0 && config.DisplayGenColumns)
+            {
+                yield return new Metric(mapDescriptor(GarbageCollectionsMetricDescriptor.Gen2), (double)gcStats.Gen2Collections / (double)gcStats.TotalOperations * 1000.0);
+            }
+            yield return new Metric(mapDescriptor(AllocatedMemoryMetricDescriptor.Instance), gcStats.GetBytesAllocatedPerOperation(diagnoserResults.BenchmarkCase));
         }
 
         public void DisplayResults(ILogger logger)
@@ -128,8 +137,8 @@ namespace DotVVM.Benchmarks
             public string Unit => SizeUnit.B.Name;
             public bool TheGreaterTheBetter => false;
 
-			public int PriorityInCategory => 0;
-		}
+            public int PriorityInCategory => 0;
+        }
 
         private class GarbageCollectionsMetricDescriptor : IMetricDescriptor
         {
@@ -152,8 +161,8 @@ namespace DotVVM.Benchmarks
             public string Unit => "Count";
             public bool TheGreaterTheBetter => false;
 
-			public int PriorityInCategory => 0;
-		}
+            public int PriorityInCategory => 0;
+        }
 }
     /// <summary>
     /// Custom synchronization context implementation using BlockingCollection.

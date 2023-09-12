@@ -71,14 +71,14 @@ namespace DotVVM.Benchmarks.Benchmarks
 
         [Benchmark]
         public void RenderBoundLiteral() => InitAndRender(() => {
-            var l = new Literal(allowImplicitLifecycleRequirements: false);
+            var l = new Literal();
             Literal.TextProperty.SetValue(l, testValueBinding);
             return l;
         });
 
         [Benchmark]
         public void RenderEmptyLiteral() => InitAndRender(() => {
-            var l = new Literal(allowImplicitLifecycleRequirements: false);
+            var l = new Literal();
             Literal.TextProperty.SetValue(l, "");
             return l;
         });
