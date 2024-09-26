@@ -1,4 +1,9 @@
-// #define RUN_perf_samples
+#define RUN_perf_samples
+// #define RUN_dotvvm_samples
+// #define RUN_manytargets
+#define RUN_synth_tests
+#define PRECISE_RUN
+// #define DEBUG_RUN
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +28,15 @@ using BenchmarkDotNet.Toolchains;
 using BenchmarkDotNet.Toolchains.Results;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Toolchains.Parameters;
+using BenchmarkDotNet.Exporters.Csv;
+using System.Globalization;
+using BenchmarkDotNet.Columns;
+using Microsoft.AspNetCore.Routing.Tree;
+using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Mvc;
+using BenchmarkDotNet.Environments;
+using Microsoft.Diagnostics.Runtime;
+using BenchmarkDotNet.Toolchains.CsProj;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -110,18 +124,39 @@ namespace DotVVM.Benchmarks
             var conf = CreateTestConfiguration();
 
             var b = new List<BenchmarkRunInfo>();
-            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.HtmlWriterBenchmarks), conf));
             // b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: false));
 #if RUN_synth_tests
+            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.HtmlWriterBenchmarks), conf));
             // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.RequestBenchmarks), conf));
-            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
+            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.ParserBenchmarks), conf));
             // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(Benchmarks.SingleControlTests), conf));
 #endif
 #if RUN_dotvvm_samples
-            b.AddRange(DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true));
+            b.AddRange(
+                DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.BenchmarkSamples(conf, postRequests: true, getRequests: true)
+#if DEBUG_RUN
+                    .Select(p => new BenchmarkRunInfo(
+                        p.BenchmarksCases.Where(bcase => bcase.Parameters.Items.Any(p => {
+                            Console.WriteLine(p.Name + " " + p.Value);
+                            return p.Name == "Url" && (p.Value + "") == "/ComplexSamples/TaskList/ServerRenderedTaskList";
+                        })).ToArray(),
+                        p.Type,
+                        p.Config
+                    ))
+#else
+                    .Select(p => new BenchmarkRunInfo(
+                        p.BenchmarksCases.Where(bcase => bcase.Parameters.Items.Any(p => {
+                            return p.Name == "Url" && (p.Value + "") is "/ComplexSamples/TaskList/ServerRenderedTaskList" or "/ControlSamples/GridView/LargeGrid" or "/ControlSamples/GridView/GridViewPagingSorting" or "/FeatureSamples/AutoUI/AutoForm" or "/FeatureSamples/AutoUI/AutoGridViewColumns" or "/FeatureSamples/PostBack/ConfirmPostBackHandler" or "ControlSamples/IncludeInPageProperty/IncludeInPage" or "/FeatureSamples/FormControlsEnabled/FormControlsEnabled" or "/ControlSamples/TextBox/TextBox_Format" or "/ControlSamples/TextBox/TextBox_Format_Binding";
+                        })).ToArray(),
+                        p.Type,
+                        p.Config
+                    ))
+
+#endif
+            );
 #endif
 #if RUN_perf_samples
-            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: false));
+            b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: true));
             Console.WriteLine("Running with perf samples");
 #endif
 #if RUN_aspnet_mvc
@@ -137,6 +172,10 @@ namespace DotVVM.Benchmarks
 
         static IConfig CreateTestConfiguration()
         {
+            var machineCulture = new CultureInfo("");
+            machineCulture.NumberFormat.NumberGroupSeparator = "";
+            machineCulture.NumberFormat.PercentGroupSeparator = "";
+            machineCulture.NumberFormat.CurrencyGroupSeparator = "";
             var methodColumns = new[] {
                                     ("DotVVM.Framework.Hosting.DotvvmPresenter::ProcessRequest", "ProcessRequest"),
                                     ("DotVVM.Framework.Runtime.DefaultOutputRenderer::WriteHtmlResponse", "WriteHtmlResponse"),
@@ -148,16 +187,85 @@ namespace DotVVM.Benchmarks
                                     ("DotVVM.Framework.ViewModel.Serialization.DefaultViewModelSerializer::BuildViewModel", "Serialize"),
                                 };
             var conf = ManualConfig.Create(DefaultConfig.Instance);
-            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false)));
+
+#if RUN_manytargets
+            var jobs =
+                from runtime in new[] {
+                    (runtime: CoreRuntime.Core60, toolchain: CsProjCoreToolchain.NetCoreApp60),
+                    (runtime: CoreRuntime.Core70, toolchain: CsProjCoreToolchain.NetCoreApp70),
+                    (runtime: CoreRuntime.Core80, toolchain: CsProjCoreToolchain.NetCoreApp80),
+                }
+                from gcServer in new[] {
+                    true,
+                    false
+                }
+                from gcConcurrent in new[] {
+                    true,
+                    // false
+                }
+                from pgoEnvVars in (new[] {
+                    new [] { new EnvironmentVariable("DOTNET_TC_QuickJitForLoops", "1"), new EnvironmentVariable("DOTNET_ReadyToRun", "0"), new EnvironmentVariable("DOTNET_TieredPGO", "1") },
+                    new [] { new EnvironmentVariable("DOTNET_TieredPGO", "0") }
+                })
+                from bullshitEnvVars in (new[] {
+                    new [] { new EnvironmentVariable("BS", "1") },
+                    Array.Empty<EnvironmentVariable>()
+                })
+                from affinity in new[] {
+                    new IntPtr(1),
+                    new IntPtr(63),
+                    new IntPtr(63 << 24)
+                }
+
+                where pgoEnvVars.Length == 1 || runtime.runtime == CoreRuntime.Core70 || runtime.runtime == CoreRuntime.Core80
+
+                select WithRunCount(
+                    new Job().WithJit(Jit.RyuJit).WithGcServer(gcServer).WithGcForce(false).WithAffinity(affinity).WithGcConcurrent(gcConcurrent).WithEnvironmentVariables(pgoEnvVars.Concat(bullshitEnvVars).ToArray()),
+                    runtime.runtime,
+                    runtime.toolchain
+                );
+            foreach (var job in jobs)
+            {
+                Console.WriteLine(job);
+                conf.AddJob(job);
+            }
+#else
+            var cpu1 = new IntPtr(63);
+            var cpu2 = new IntPtr(63 << 8);
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core60, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp60));
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core70, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp70));
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80));
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80));
+            // conf.AddJob(
+            //     WithRunCount(Job.RyuJitX64.WithGcForce(false), CoreRuntime.Core70, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp70)
+            //         .WithAffinity(new IntPtr(63 << 24))
+            // );
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false), CoreRuntime.Core70, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp70).WithEnvironmentVariable("DOTNET_TC_QuickJitForLoops", "1").WithEnvironmentVariable("DOTNET_ReadyToRun", "0").WithEnvironmentVariable("DOTNET_TieredPGO", "1").WithEnvironmentVariables());
+#endif
             conf.WithOptions(ConfigOptions.DisableOptimizationsValidator | ConfigOptions.JoinSummary);
-            // conf.AddExporter(BenchmarkDotNet.Exporters.MarkdownExporter.Default);
-            // conf.AddExporter(BenchmarkDotNet.Exporters.HtmlExporter.Default);
             // conf.AddExporter(new MyJsonExporter(conf));
+            // conf.Expo
+
+            conf.WithSummaryStyle(conf.SummaryStyle.WithMaxParameterColumnWidth(99999).WithCultureInfo(CultureInfo.InvariantCulture));
+            conf.AddExporter(new CsvExporter(CsvSeparator.Comma, new SummaryStyle(
+                machineCulture,
+                printUnitsInHeader: true,
+                sizeUnit: SizeUnit.B,
+                timeUnit: Perfolizer.Horology.TimeUnit.Microsecond,
+                printUnitsInContent: false,
+                printZeroValuesInContent: true,
+                maxParameterColumnWidth: 99999
+            )));
+
             conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Median);
             conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.OperationsPerSecond);
             conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.Min);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.P95);
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.CiLower(Perfolizer.Mathematics.Common.ConfidenceLevel.L95));
+            conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.CiUpper(Perfolizer.Mathematics.Common.ConfidenceLevel.L95));
 
-            // conf.AddDiagnoser(new CpuTimeDiagnoser());
+            conf.AddDiagnoser(new CpuTimeDiagnoser());
 // #if DIAGNOSER_cpu_sampling
 //             var benchmarkDiagnoser = new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
 // #if DEBUG || EXPORT_rawperf
@@ -178,14 +286,16 @@ namespace DotVVM.Benchmarks
             return conf;
         }
 
-        private static Job WithRunCount(Job job)
+        private static Job WithRunCount(Job job, Runtime runtime = null, IToolchain toolchain = null)
         {
             job = new Job(job);
-            var toolchain = BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp60;
+            runtime ??= CoreRuntime.Core60;
+            toolchain ??= BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp60;
             job.Infrastructure.Toolchain = new Toolchain(toolchain.Name, toolchain.Generator, new SynchonousBuilder(toolchain.Builder), new InterceptingExecutor(toolchain.Executor));
             // job = job.WithMinIterationTime(BenchmarkDotNet.Horology.TimeInterval.FromMilliseconds(200));
             //job.Run.WarmupCount = 1;
             return job
+                .WithRuntime(runtime)
                 .WithArguments(new MsBuildArgument[] { new MsBuildArgument("--disable-parallel") })
 #if DEBUG_RUN
                 .WithMaxIterationCount(8).WithMinIterationCount(6).WithWarmupCount(1)
@@ -193,7 +303,7 @@ namespace DotVVM.Benchmarks
                 .WithMaxRelativeError(0.008)
                 .WithMaxIterationCount(1000).WithMinIterationCount(64)
 #else
-                .WithMaxIterationCount(60).WithMinIterationCount(10).WithWarmupCount(2)
+                .WithMaxIterationCount(80).WithMinIterationCount(10).WithWarmupCount(2)
 #endif
                 // .WithMinIterationCount(128)
 

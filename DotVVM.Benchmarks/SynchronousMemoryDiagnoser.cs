@@ -114,7 +114,7 @@ namespace DotVVM.Benchmarks
             {
                 yield return new Metric(mapDescriptor(GarbageCollectionsMetricDescriptor.Gen2), (double)gcStats.Gen2Collections / (double)gcStats.TotalOperations * 1000.0);
             }
-            yield return new Metric(mapDescriptor(AllocatedMemoryMetricDescriptor.Instance), gcStats.GetBytesAllocatedPerOperation(diagnoserResults.BenchmarkCase));
+            yield return new Metric(mapDescriptor(AllocatedMemoryMetricDescriptor.Instance), gcStats.GetBytesAllocatedPerOperation(diagnoserResults.BenchmarkCase) ?? 0);
         }
 
         public void DisplayResults(ILogger logger)
@@ -138,6 +138,11 @@ namespace DotVVM.Benchmarks
             public bool TheGreaterTheBetter => false;
 
             public int PriorityInCategory => 0;
+
+            public bool GetIsAvailable(Metric metric)
+            {
+                return metric.Value > 0;
+            }
         }
 
         private class GarbageCollectionsMetricDescriptor : IMetricDescriptor
@@ -162,6 +167,11 @@ namespace DotVVM.Benchmarks
             public bool TheGreaterTheBetter => false;
 
             public int PriorityInCategory => 0;
+
+            public bool GetIsAvailable(Metric metric)
+            {
+                return metric.Value > 0;
+            }
         }
 }
     /// <summary>

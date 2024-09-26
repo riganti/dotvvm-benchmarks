@@ -265,3 +265,4 @@ BenchmarkDotNet.Artifacts/results/
 DotVVM.Benchmarks/BenchmarkDotNet.Artifacts/
 /BenchmarkDotNet.Artifacts/
 /testViewModels
+DotVVM.Benchmarks/testViewModels

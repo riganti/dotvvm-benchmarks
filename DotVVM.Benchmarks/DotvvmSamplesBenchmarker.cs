@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -13,6 +15,7 @@ using BenchmarkDotNet.Parameters;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using DotVVM.Framework.Configuration;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace DotVVM.Benchmarks
@@ -176,6 +179,9 @@ namespace DotVVM.Benchmarks
         // V2.0 sample: <dotvvm.postBack("root",this,["Children/[$index]", "Children/[$index]"],"J0P/GrlKdT/ylW4Q","",null,["validate-root"],undefined);event.stopPropagation();return false;>
         private static Regex postbackScriptRegex1 = new Regex(@".*dotvvm\.postback(script\(['""](?<CommandId>.+)['""]\))?[^a-zA-Z0-9'""]*['""](?<PageSpace>.*)['""],[^a-zA-Z0-9'""]*this,[^a-zA-Z0-9'""]*(?<TargetPath>\[.*\]),[^a-zA-Z0-9'""]*(['""](?<CommandId>.+)['""],[^a-zA-Z0-9'""]*)?['""](?<ControlId>.*)['""][^][a-zA-Z0-9'""]*(true|false|null)[^][a-zA-Z0-9'""]*(['""](?<ValidationPath>.+)['""],)?.*?(['""](?<ValidationPH>validate.*)['""])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex postbackScriptRegex2 = new Regex(@".*dotvvm\.postback(script\(['""](?<CommandId>.+)['""]\))?[^a-zA-Z0-9'""]*['""](?<PageSpace>.*)['""],[^a-zA-Z0-9'""]*this,[^a-zA-Z0-9'""]*(?<TargetPath>\[.*\]),[^a-zA-Z0-9'""]*(['""](?<CommandId>.+)['""],[^a-zA-Z0-9'""]*)?['""](?<ControlId>.*)['""][^][a-zA-Z0-9'""]*(true|false|null)[^][a-zA-Z0-9'""]*(['""](?<ValidationPath>.+)['""],)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        // V4.1 sample: dotvvm.postBack(this,["$parent.Session"],"XJHR4UnvCymYZtDZ","",null,[],[],undefined).catch(dotvvm.log.logPostBackScriptError);event.stopPropagation();return false;
+        // postBack( sender: HTMLElement, path: string[], command: string, controlUniqueId: string, context?: any, handlers?: ClientFriendlyPostbackHandlerConfiguration[], commandArgs?: any[], abortSignal?: AbortSignal)
+        private static Regex postbackScriptRegex4 = new Regex(@".*dotvvm\.postback\(this,(?<TargetPath>\[.*\]),['""](?<CommandId>[a-z0-9/=+-]+)['""],['""](?<ControlId>.*)['""],null,(?<PostbackHandlers>\[.*\]),(\[\]).*\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static IEnumerable<(string json, string name)> FindPostbacks(string html)
         {
             if (html.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) yield break;
@@ -188,17 +194,50 @@ namespace DotVVM.Benchmarks
                     if (attribute.Value.IndexOf("dotvvm.postback", StringComparison.OrdinalIgnoreCase) < 0) continue;
                     var match = postbackScriptRegex1.Match(attribute.Value);
                     if (!match.Success) match = postbackScriptRegex2.Match(attribute.Value);
-                    if (!match.Success) continue;
+                    if (!match.Success) match = postbackScriptRegex4.Match(attribute.Value);
+                    if (!match.Success)
+                    {
+                        Console.WriteLine($"Failed to parse postback script: {attribute.Value}");
+                        continue;
+                    }
                     var commandId = match.Groups["CommandId"].Value;
                     var controlId = match.Groups["ControlId"].Value;
-                    var pageSpace = match.Groups["PageSpace"].Value;
+                    // var pageSpace = match.Groups["PageSpace"].Value;
                     var targetPath = match.Groups["TargetPath"].Value;
-                    var validationPath = match.Groups["ValidationPath"].Value;
+                    var postbackHandlers = match.Groups.ContainsKey("PostbackHandlers") ? match.Groups["PostbackHandlers"].Value : null;
+                    var validationPath = match.Groups.ContainsKey("ValidationPath") ? match.Groups["ValidationPath"].Value : null;
 
+
+                    if (!string.IsNullOrEmpty(postbackHandlers))
+                    try
+                    {
+                        var parsedHandlers = JsonArray.Parse(postbackHandlers).AsArray();
+                        if (parsedHandlers.Contains("validate-root"))
+                        {
+                            validationPath = "/";
+                        }
+                        else if (parsedHandlers.Contains("validate-this"))
+                        {
+                            validationPath = "_this";
+                        }
+                        else if (parsedHandlers.OfType<JsonArray>().Any(h => ((string?)h.FirstOrDefault()?.AsValue()) == "validate"))
+                        {
+                            throw new Exception("TODO");
+                        }
+                        else
+                        {
+                            validationPath = null;
+                        }
+                    }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine($"unsupported postback handlers = `{postbackHandlers}` in `{attribute.Value}`: {e}");
+                        continue;
+                    }
 
                     targetPath = targetPath.Replace("[$index]", "[0]");
 
-                    if (String.IsNullOrEmpty(validationPath))
+                    if (String.IsNullOrEmpty(validationPath) && match.Groups.ContainsKey("ValidationPH"))
                     {
                         var valHandler = match.Groups["ValidationPH"].Value;
                         if (valHandler == "validate-root")
@@ -213,7 +252,7 @@ namespace DotVVM.Benchmarks
                             Console.WriteLine($"unsupported validation handler = `{valHandler}`");
                     }
 
-                    Debug.Assert(pageSpace == "root");
+                    // Debug.Assert(pageSpace == "root");
                     yield return (BuildPostbackPayload(vm.Value, commandId, controlId, validationPath, targetPath), commandId);
                 }
             }

@@ -126,5 +126,10 @@ namespace DotVVM.Benchmarks
         public bool TheGreaterTheBetter { get; }
 
 		public int PriorityInCategory { get; }
-	}
+
+        public bool GetIsAvailable(Metric metric)
+        {
+            return true;
+        }
+    }
 }

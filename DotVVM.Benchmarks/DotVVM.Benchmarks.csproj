@@ -13,12 +13,12 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\dotvvm\src\Framework\Hosting.AspNetCore\DotVVM.Framework.Hosting.AspNetCore.csproj" />
-    <ProjectReference Include="..\dotvvm\src\Samples\AspNetCore\DotVVM.Samples.BasicSamples.AspNetCore.csproj" />
+    <ProjectReference Include="..\dotvvm\src\Samples\AspNetCoreLatest\DotVVM.Samples.BasicSamples.AspNetCoreLatest.csproj" />
     <ProjectReference Include="..\dotvvm\src\Framework\Testing\DotVVM.Framework.Testing.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="0.16.0" />
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.3" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.8" />
     <PackageReference Include="MedallionShell" Version="1.6.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="3.1.19" />
