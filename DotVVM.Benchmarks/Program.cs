@@ -1,9 +1,9 @@
-// #define RUN_perf_samples
 // #define RUN_dotvvm_samples
+// #define RUN_perf_samples
 // #define RUN_manytargets
 #define RUN_synth_tests
-#define PRECISE_RUN
-// #define DEBUG_RUN
+// #define PRECISE_RUN
+#define DEBUG_RUN
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,6 +38,7 @@ using BenchmarkDotNet.Environments;
 using Microsoft.Diagnostics.Runtime;
 using BenchmarkDotNet.Toolchains.CsProj;
 using DotVVM.Benchmarks.Benchmarks;
+using Perfolizer.Metrology;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -118,7 +119,7 @@ namespace DotVVM.Benchmarks
             // var bb = new SingleControlTests();
             // while (true)
             // {
-            //     bb.ComprehensiveCompositeControl();
+            //     bb.RenderLargeTree();
             // }
 #if RUN_frontend_tests
             FrontendBenchmarker.BenchmarkApplication<DotvvmSamplesLauncher>(new BrowserTimeOptions { }, ".");
@@ -133,10 +134,10 @@ namespace DotVVM.Benchmarks
             var b = new List<BenchmarkRunInfo>();
             // b.AddRange(DotvvmSamplesBenchmarker<DotvvmPerfTestsLauncher>.BenchmarkSamples(conf, getRequests: true, postRequests: false));
 #if RUN_synth_tests
-            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(HtmlWriterBenchmarks), conf));
+            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(HtmlWriterBenchmarks), conf));
             // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(RequestBenchmarks), conf));
             // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(ParserBenchmarks), conf));
-            // b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(SingleControlTests), conf));
+            b.Add(BenchmarkConverter.TypeToBenchmarks(typeof(SingleControlTests), conf));
 #endif
 #if RUN_dotvvm_samples
             b.AddRange(
@@ -153,7 +154,8 @@ namespace DotVVM.Benchmarks
 #else
                     .Select(p => new BenchmarkRunInfo(
                         p.BenchmarksCases.Where(bcase => bcase.Parameters.Items.Any(p => {
-                            return p.Name == "Url" && (p.Value + "") is "/ComplexSamples/TaskList/ServerRenderedTaskList" or "/ControlSamples/GridView/LargeGrid" or "/ControlSamples/GridView/GridViewPagingSorting" or "/FeatureSamples/AutoUI/AutoForm" or "/FeatureSamples/AutoUI/AutoGridViewColumns" or "/FeatureSamples/PostBack/ConfirmPostBackHandler" or "ControlSamples/IncludeInPageProperty/IncludeInPage" or "/FeatureSamples/FormControlsEnabled/FormControlsEnabled" or "/ControlSamples/TextBox/TextBox_Format" or "/ControlSamples/TextBox/TextBox_Format_Binding";
+                            return p.Name == "Url" && (p.Value + "") is "/ControlSamples/GridView/LargeGrid" or "/ControlSamples/GridView/GridViewPagingSorting" or "/FeatureSamples/AutoUI/AutoForm" or "/FeatureSamples/AutoUI/AutoGridViewColumns";
+                            // return p.Name == "Url" && (p.Value + "") is "/ComplexSamples/TaskList/ServerRenderedTaskList" or "/ControlSamples/GridView/LargeGrid" or "/ControlSamples/GridView/GridViewPagingSorting" or "/FeatureSamples/AutoUI/AutoForm" or "/FeatureSamples/AutoUI/AutoGridViewColumns" or "/FeatureSamples/PostBack/ConfirmPostBackHandler" or "ControlSamples/IncludeInPageProperty/IncludeInPage" or "/FeatureSamples/FormControlsEnabled/FormControlsEnabled" or "/ControlSamples/TextBox/TextBox_Format" or "/ControlSamples/TextBox/TextBox_Format_Binding";
                         })).ToArray(),
                         p.Type,
                         p.Config
@@ -237,13 +239,18 @@ namespace DotVVM.Benchmarks
                 conf.AddJob(job);
             }
 #else
-            var cpu1 = new IntPtr(63);
-            var cpu2 = new IntPtr(63 << 8);
-            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core60, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp60));
-            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core70, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp70));
-            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
-            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80).WithEnvironmentVariable("DOTNET_TieredPGO", "1"));
-            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80));
+            // var cpu1 = new IntPtr(63);
+            // var cpu1 = new IntPtr(63);
+            var cpu1 = new IntPtr(3);
+            var cpu2 = new IntPtr(3 << 8);
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80).WithEnvironmentVariable("DOTNET_TieredPGO", "1"));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core80, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp80).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core90, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp90).WithEnvironmentVariable("DOTNET_TieredPGO", "1"));
+            conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core90, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp90).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu1), CoreRuntime.Core90, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp90).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core10_0, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp90).WithEnvironmentVariable("DOTNET_TieredPGO", "0"));
+            // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false).WithAffinity(cpu2), CoreRuntime.Core10_0, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp90).WithEnvironmentVariable("DOTNET_TieredPGO", "1"));
             // conf.AddJob(
             //     WithRunCount(Job.RyuJitX64.WithGcForce(false), CoreRuntime.Core70, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp70)
             //         .WithAffinity(new IntPtr(63 << 24))
@@ -251,7 +258,7 @@ namespace DotVVM.Benchmarks
             // conf.AddJob(WithRunCount(Job.RyuJitX64.WithGcForce(false), CoreRuntime.Core70, BenchmarkDotNet.Toolchains.CsProj.CsProjCoreToolchain.NetCoreApp70).WithEnvironmentVariable("DOTNET_TC_QuickJitForLoops", "1").WithEnvironmentVariable("DOTNET_ReadyToRun", "0").WithEnvironmentVariable("DOTNET_TieredPGO", "1").WithEnvironmentVariables());
 #endif
             conf.WithOptions(ConfigOptions.DisableOptimizationsValidator | ConfigOptions.JoinSummary);
-            // conf.AddExporter(new MyJsonExporter(conf));
+            conf.AddExporter(new MyJsonExporter(conf));
             // conf.Expo
 
             conf.WithSummaryStyle(conf.SummaryStyle.WithMaxParameterColumnWidth(99999).WithCultureInfo(CultureInfo.InvariantCulture));
@@ -272,7 +279,7 @@ namespace DotVVM.Benchmarks
             conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.CiLower(Perfolizer.Mathematics.Common.ConfidenceLevel.L95));
             conf.AddColumn(BenchmarkDotNet.Columns.StatisticColumn.CiUpper(Perfolizer.Mathematics.Common.ConfidenceLevel.L95));
 
-            conf.AddDiagnoser(new CpuTimeDiagnoser());
+            // conf.AddDiagnoser(new CpuTimeDiagnoser());
 // #if DIAGNOSER_cpu_sampling
 //             var benchmarkDiagnoser = new LinuxPerfBenchmarkDiagnoser(methodColumns: methodColumns, enableStacksExport: true,
 // #if DEBUG || EXPORT_rawperf
@@ -308,6 +315,7 @@ namespace DotVVM.Benchmarks
                 .WithMaxIterationCount(8).WithMinIterationCount(6).WithWarmupCount(1)
 #elif PRECISE_RUN
                 .WithMaxRelativeError(0.008)
+                .WithWarmupCount(12)
                 .WithMaxIterationCount(1000).WithMinIterationCount(64)
 #else
                 .WithMaxIterationCount(80).WithMinIterationCount(10).WithWarmupCount(2)

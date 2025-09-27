@@ -7,17 +7,19 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using DotVVM.Framework.Binding;
 using DotVVM.Framework.Binding.Expressions;
+using DotVVM.Framework.Binding.Properties;
 using DotVVM.Framework.Compilation.ControlTree;
 using DotVVM.Framework.Configuration;
 using DotVVM.Framework.Controls;
 using DotVVM.Framework.Controls.Infrastructure;
 using DotVVM.Framework.Hosting;
 using DotVVM.Framework.Testing;
+using DotVVM.Framework.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DotVVM.Benchmarks.Benchmarks
 {
-    [DisassemblyDiagnoser(maxDepth: 8, printSource: true, exportHtml: true)]
+    // [DisassemblyDiagnoser(maxDepth: 2, printSource: true, exportHtml: true)] // Warning: often causes segfaults
     public class SingleControlTests
     {
         private readonly DotvvmConfiguration configuration = DotvvmSamplesBenchmarker<DotvvmSamplesLauncher>.CreateSamplesTestHost().Configuration;
@@ -29,7 +31,9 @@ namespace DotVVM.Benchmarks.Benchmarks
         private readonly Random random = new Random();
 
         private readonly IValueBinding testValueBinding;
-        private readonly IValueBinding boolValueBinding;
+        private readonly IValueBinding<bool> boolValueBinding;
+        private readonly IValueBinding<string[]> collectionValueBinding;
+        private readonly IValueBinding<string> innerCollectionValueBinding;
         readonly HtmlGenericControl basicHtmlElement;
         readonly HtmlGenericControl richHtmlElement;
         readonly TextBox textBox = new TextBox { Text = "Abc" };
@@ -43,7 +47,7 @@ namespace DotVVM.Benchmarks.Benchmarks
             };
             writer = new HtmlWriter(new StringWriter(output), context);
             Internal.MarkupFileNameProperty.SetValue(rootView, "some_fake_path");
-            Internal.RequestContextProperty.SetValue(rootView, "some_fake_path");
+            Internal.RequestContextProperty.SetValue(rootView, context);
 
             _ = context.Services.GetRequiredService<IControlResolver>(); // init Dotvvm properties
             var bcs = context.Services.GetService<BindingCompilationService>();
@@ -54,6 +58,8 @@ namespace DotVVM.Benchmarks.Benchmarks
 
             testValueBinding = ValueBindingExpression.CreateBinding(bcs, h => ((TestViewModel)h[0]).Property, dataContext);
             boolValueBinding = ValueBindingExpression.CreateBinding(bcs, h => ((TestViewModel)h[0]).Property == 0, dataContext);
+            collectionValueBinding = ValueBindingExpression.CreateBinding(bcs, h => ((TestViewModel)h[0]).Collection, dataContext);
+            innerCollectionValueBinding = ValueBindingExpression.CreateThisBinding<string>(bcs, collectionValueBinding.GetProperty<CollectionElementDataContextBindingProperty>().DataContext);
 
             basicHtmlElement = new HtmlGenericControl("div");
             richHtmlElement = new HtmlGenericControl("div");
@@ -113,15 +119,13 @@ namespace DotVVM.Benchmarks.Benchmarks
 
         [Benchmark]
         public void RenderBoundLiteral() => InitAndRender(() => {
-            var l = new Literal();
-            Literal.TextProperty.SetValue(l, testValueBinding);
+            var l = new Literal(testValueBinding);
             return l;
         });
 
         [Benchmark]
         public void RenderEmptyLiteral() => InitAndRender(() => {
-            var l = new Literal();
-            Literal.TextProperty.SetValue(l, "");
+            var l = new Literal("");
             return l;
         });
 
@@ -132,7 +136,6 @@ namespace DotVVM.Benchmarks.Benchmarks
             t.Attributes.Add("class", "my-class");
             return t;
         });
-
 
         [Benchmark]
         public void RenderBasicHtmlElement() => InitAndRender(() => basicHtmlElement);
@@ -146,21 +149,21 @@ namespace DotVVM.Benchmarks.Benchmarks
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void SetProperty2()
         {
             TextBox.VisibleProperty.SetValue(this.textBox, TextBox.VisibleProperty.GetValue(this.textBox, inherit: false));
+            TextBox.VisibleProperty.SetValue(this.textBox, null);
+            this.textBox.SetValue(TextBox.VisibleProperty, false);
+            HtmlGenericControl.VisibleProperty.SetValue(this.textBox, BoxingUtils.False);
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void ClearEmptyGroup()
         {
             this.textBox.Attributes.Clear();
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void SetClearGroup()
         {
             this.textBox.Attributes.Add("class", "my-class");
@@ -174,6 +177,54 @@ namespace DotVVM.Benchmarks.Benchmarks
             var control = new HtmlGenericControl("tr");
             prototype.BuildContent(context, control);
             return control;
+        });
+
+        [Benchmark]
+        public void RenderLargeTree() => InitAndRender(() => {
+            var template1 = new CloneTemplate(
+                new HtmlGenericControl("div")
+                    .AddCssClasses("class1", "class2")
+                    .AddAttribute("data-something", innerCollectionValueBinding)
+                    .AppendChildren(
+                        new Literal("Hello"),
+                        new Literal(innerCollectionValueBinding)
+                    )
+            );
+            var root = new HtmlGenericControl("div");
+            var repeater = new Repeater()
+                .SetProperty(r => r.ItemTemplate, template1)
+                .SetProperty(r => r.DataSource, collectionValueBinding)
+                .SetProperty(r => r.WrapperTagName, "div");
+
+            root.AppendChildren(repeater);
+
+            var ul = new HtmlGenericControl("ul");
+            var lis = Enumerable.Range(0, 300).Select(i => new HtmlGenericControl("li")
+                    .AppendChildren(new Literal($"Item {i}"))
+                    .AppendChildren(new HtmlGenericControl("span")
+                        .SetAttribute("data-something-else", "lala")
+                        .SetAttribute("title", $"bla {i}")
+                        .AddCssClass("my-class")
+                        .AddCssClass("my-class2")
+                        .AddCssClass("my-class3", boolValueBinding)
+                        .AppendChildren(new Literal($"content {i}") { RenderSpanElement = false })
+                        .AppendChildren(new Literal("content") { RenderSpanElement = true }.AddCssClass("my-class4"))
+                    )
+                    .AppendChildren(new HtmlGenericControl("br"))
+                    .AppendChildren(new HtmlGenericControl("span")
+                        .SetAttribute("data-something-else", "lala")
+                        .SetAttribute("title", "bla")
+                        .AddCssClass("my-class")
+                        .AddCssClass("my-class2")
+                        .AddCssClass("my-class3", boolValueBinding)
+                        .AppendChildren(new Literal($"content") { RenderSpanElement = false })
+                        .AppendChildren(new Literal("content") { RenderSpanElement = true }.AddCssClass("my-class4"))
+                    )
+            ).ToArray();
+            random.Shuffle(lis); // cache trolling
+            root.AppendChildren(lis);
+
+            return root;
         });
 
 

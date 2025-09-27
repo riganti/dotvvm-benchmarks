@@ -33,6 +33,7 @@ using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Toolchains.Results;
 using BenchmarkDotNet.Validators;
+using Perfolizer.Metrology;
 
 namespace DotVVM.Benchmarks
 {
@@ -134,7 +135,7 @@ namespace DotVVM.Benchmarks
             public string Legend => "Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)";
             public string NumberFormat => "N0";
             public UnitType UnitType => UnitType.Size;
-            public string Unit => SizeUnit.B.Name;
+            public string Unit => SizeUnit.B.FullName;
             public bool TheGreaterTheBetter => false;
 
             public int PriorityInCategory => 0;

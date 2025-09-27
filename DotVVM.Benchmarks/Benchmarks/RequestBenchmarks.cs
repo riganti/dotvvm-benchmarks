@@ -7,6 +7,7 @@ namespace DotVVM.Benchmarks.Benchmarks
     public class TestViewModel
     {
         public int Property { get; set; }
+        public string[] Collection { get; set; } = Enumerable.Range(1, 100).Select(i => $"Item {i}").ToArray();
     }
     public class RequestBenchmarks
     {

@@ -17,6 +17,7 @@ using BenchmarkDotNet.Columns;
 using System.Globalization;
 using Perfolizer.Horology;
 using BenchmarkDotNet.Configs;
+using Perfolizer.Metrology;
 
 // #if C_77b3b6f || DEBUG
 // #else
@@ -48,8 +49,8 @@ namespace DotVVM.Benchmarks
             {
                 HostEnvironmentInfo.BenchmarkDotNetCaption,
                 summary.HostEnvironmentInfo.BenchmarkDotNetVersion,
-                OsVersion = summary.HostEnvironmentInfo.OsVersion.Value,
-                summary.HostEnvironmentInfo.CpuInfo,
+                OsVersion = summary.HostEnvironmentInfo.Os.Value.ToString(),
+                CpuInfo = summary.HostEnvironmentInfo.Cpu.Value.ToString(),
                 summary.HostEnvironmentInfo.RuntimeVersion,
                 summary.HostEnvironmentInfo.Architecture,
                 summary.HostEnvironmentInfo.HasAttachedDebugger,
